@@ -1,0 +1,377 @@
+@import "tailwindcss";
+
+:root {
+  --night: #160c1c;
+  --plum: #2a1430;
+  --wine: #5a2338;
+  --ember: #d0603f;
+  --amber: #f0a35e;
+  --gold: #ffd29a;
+  --cream: #fbefe2;
+  --mist: rgba(251, 239, 226, 0.8);
+  --faint: rgba(251, 239, 226, 0.6);
+  --line: rgba(255, 220, 180, 0.16);
+  --glass: rgba(42, 20, 48, 0.42);
+  --glass-strong: rgba(30, 14, 36, 0.66);
+  --panel: rgba(26, 12, 32, 0.97);
+  --danger: #ff8a7a;
+  --ok: #b9e3c6;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  background: var(--night);
+  color-scheme: dark;
+  font-size: 100%;
+}
+/* Text size chosen in the Aa panel — everything is in rem, so the whole UI scales. */
+html[data-text="large"] {
+  font-size: 118.75%;
+}
+html[data-text="xl"] {
+  font-size: 137.5%;
+}
+/* Calm mode: no motion at all */
+html.calm *,
+html.calm *::before,
+html.calm *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* High contrast: solid panels, brighter secondary text, stronger borders */
+html.contrast {
+  --mist: #fffaf3;
+  --faint: rgba(255, 250, 243, 0.88);
+  --line: rgba(255, 225, 190, 0.6);
+  --glass: rgba(12, 5, 16, 0.94);
+  --glass-strong: rgba(8, 3, 12, 0.97);
+  --panel: #0a040e;
+  --danger: #ffb4a8;
+  --gold: #ffe0b5;
+}
+html.contrast .glass {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.contrast .grain::after {
+  display: none;
+}
+html.contrast .hero-copy {
+  text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.95),
+    0 0 24px rgba(0, 0, 0, 0.8);
+}
+html.contrast .link {
+  text-decoration-color: currentColor;
+}
+
+/* Clear keyboard focus for everyone */
+:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+body {
+  background: var(--night);
+  color: var(--cream);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(255, 210, 154, 0.35);
+  color: var(--cream);
+}
+
+.hero-copy {
+  text-shadow:
+    0 2px 24px rgba(36, 10, 30, 0.55),
+    0 1px 2px rgba(36, 10, 30, 0.35);
+}
+
+.serif {
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+/* ---------- glass ---------- */
+.glass {
+  background: linear-gradient(160deg, rgba(255, 214, 170, 0.08), rgba(255, 214, 170, 0.02) 40%), var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  border-radius: 28px;
+  box-shadow:
+    0 1px 0 rgba(255, 230, 200, 0.1) inset,
+    0 30px 80px -30px rgba(10, 2, 12, 0.7);
+}
+
+.field {
+  width: 100%;
+  background: rgba(20, 8, 24, 0.45);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: var(--cream);
+  outline: none;
+  transition:
+    border-color 0.4s var(--ease),
+    background 0.4s var(--ease),
+    box-shadow 0.4s var(--ease);
+}
+.field::placeholder {
+  color: var(--faint);
+}
+.field:focus {
+  border-color: rgba(255, 210, 154, 0.55);
+  background: rgba(20, 8, 24, 0.6);
+  box-shadow: 0 0 0 6px rgba(255, 190, 130, 0.08);
+}
+select.field option {
+  background: var(--plum);
+}
+
+.label {
+  font-size: 0.8125rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  padding: 14px 26px;
+  font-weight: 500;
+  transition:
+    transform 0.5s var(--ease),
+    box-shadow 0.5s var(--ease),
+    background 0.5s var(--ease),
+    opacity 0.3s;
+  cursor: pointer;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+.btn-sun {
+  color: #2a1020;
+  background: radial-gradient(120% 140% at 30% 20%, #fff1d8 0%, var(--gold) 35%, var(--amber) 75%, var(--ember) 120%);
+  box-shadow:
+    0 10px 40px -10px rgba(255, 170, 100, 0.65),
+    0 0 0 1px rgba(255, 230, 200, 0.5) inset;
+}
+.btn-sun:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 18px 60px -12px rgba(255, 170, 100, 0.85),
+    0 0 0 1px rgba(255, 240, 220, 0.7) inset;
+}
+.btn-ghost {
+  color: var(--cream);
+  border: 1px solid var(--line);
+  background: rgba(255, 220, 180, 0.04);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 220, 180, 0.1);
+  border-color: rgba(255, 210, 154, 0.4);
+}
+.btn-solid {
+  background: rgba(22, 12, 28, 0.62);
+  border-color: rgba(255, 220, 180, 0.35);
+}
+[tabindex="-1"]:focus,
+[tabindex="-1"]:focus-visible {
+  outline: none;
+}
+.btn-sm {
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  min-height: 44px; /* comfortable tap target */
+}
+.btn-lg {
+  padding: 18px 34px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* Big, forgiving answer cards for the guided intake */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 72px;
+  padding: 16px 20px;
+  text-align: left;
+  border-radius: 22px;
+  border: 1.5px solid var(--line);
+  background: rgba(255, 220, 180, 0.04);
+  color: var(--cream);
+  cursor: pointer;
+  transition:
+    background 0.3s var(--ease),
+    border-color 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.choice:hover {
+  background: rgba(255, 220, 180, 0.1);
+  border-color: rgba(255, 210, 154, 0.45);
+}
+.choice:active {
+  transform: scale(0.99);
+}
+.choice[aria-pressed="true"] {
+  border-color: var(--gold);
+  background: rgba(255, 210, 154, 0.12);
+  box-shadow: 0 0 0 4px rgba(255, 190, 130, 0.12);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 220, 180, 0.05);
+  color: var(--mist);
+}
+
+.link {
+  color: var(--gold);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 210, 154, 0.35);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.3s;
+}
+.link:hover {
+  text-decoration-color: var(--gold);
+}
+
+/* ---------- 3D node labels ---------- */
+.node-label {
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translate(-50%, -150%);
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(22, 12, 28, 0.72);
+  border: 1px solid var(--line);
+  color: var(--cream);
+  backdrop-filter: blur(8px);
+}
+.node-label b {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.doc {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--cream);
+}
+
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  z-index: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.print-only,
+.print-all {
+  display: none;
+}
+
+@media print {
+  .print-only {
+    display: block;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .printable,
+  .printable * {
+    visibility: visible;
+  }
+  .printable {
+    position: absolute;
+    inset: 0;
+    color: #000;
+    background: #fff;
+    padding: 24px;
+  }
+  /* "Print everything": only the case pack, in normal page flow so it runs over several pages */
+  html[data-print="all"] body > *:not(.print-all) {
+    display: none !important;
+  }
+  html[data-print="all"],
+  html[data-print="all"] body {
+    background: #fff !important;
+  }
+  html[data-print="all"] .print-all {
+    display: block;
+    color: #000;
+    font: 11pt/1.5 Georgia, serif;
+  }
+  html[data-print="all"] .print-all,
+  html[data-print="all"] .print-all * {
+    visibility: visible;
+  }
+  .print-all h1 {
+    font-size: 20pt;
+    margin-bottom: 8pt;
+  }
+  .print-all h2 {
+    font-size: 14pt;
+    margin: 14pt 0 6pt;
+  }
+  .print-all p,
+  .print-all li {
+    margin: 4pt 0;
+  }
+  .print-all pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font: 9.5pt/1.5 ui-monospace, Consolas, monospace;
+  }
+  .print-all .page {
+    break-before: page;
+  }
+}
