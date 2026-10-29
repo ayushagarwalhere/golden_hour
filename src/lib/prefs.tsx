@@ -3,6 +3,7 @@
 import { MotionConfig } from "motion/react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { speechLang, translate, type Key, type Lang } from "./i18n";
+import { chunks, loadVoicePrefs, pickVoice } from "./voice";
 
 export type TextSize = "normal" | "large" | "xl";
 type Prefs = {
@@ -80,16 +81,15 @@ export function speak(text: string, lang?: string, onEnd?: () => void) {
   const tag = lang ?? speechLang((document.documentElement.lang as Lang) || "en");
   window.speechSynthesis.cancel();
   // speak in short chunks — long utterances get cut off on some browsers
-  const chunks = text.replace(/\s+/g, " ").match(/[^.!?।]+[.!?।]*/g) ?? [text];
-  const voices = window.speechSynthesis.getVoices();
-  const norm = (s: string) => s.replace("_", "-").toLowerCase();
-  const voice = voices.find((v) => norm(v.lang) === norm(tag)) ?? voices.find((v) => norm(v.lang).startsWith(norm(tag).slice(0, 2)));
-  chunks.forEach((c, i) => {
-    const u = new SpeechSynthesisUtterance(c.trim());
-    u.rate = 0.9;
+  const parts = chunks(text);
+  const { name, rate } = loadVoicePrefs();
+  const voice = pickVoice(tag, name);
+  parts.forEach((c, i) => {
+    const u = new SpeechSynthesisUtterance(c);
+    u.rate = rate;
     u.lang = tag;
     if (voice) u.voice = voice;
-    if (onEnd && i === chunks.length - 1) {
+    if (onEnd && i === parts.length - 1) {
       u.onend = onEnd;
       u.onerror = onEnd;
     }

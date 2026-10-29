@@ -1,4 +1,4 @@
-import { agentRespond, emptyCollected, FIELDS, greeting, newState, spokenSummary, type AgentState, type Channel, type Stage } from "@/lib/agent";
+import { agentRespond, emptyCollected, FIELDS, greeting, newState, spokenSummary, unsaid, type AgentState, type Channel, type Stage } from "@/lib/agent";
 import { helplinesFor } from "@/lib/directory";
 import type { Lang } from "@/lib/i18n";
 import { clientIp, makeLimiter } from "@/lib/rateLimit";
@@ -30,6 +30,7 @@ function readState(raw: unknown, lang: Lang, channel: Channel): AgentState {
  * POST /api/agent
  *   { lang, channel }                       → greeting and a fresh conversation
  *   { lang, channel, state, text }          → the helper's next reply
+ *   { lang, channel, state, text, stream: true } → the same, streamed sentence by sentence (NDJSON)
  *   { lang, channel, summary: {...} }       → what to say once the case is done
  */
 export async function POST(req: Request) {
@@ -71,6 +72,26 @@ export async function POST(req: Request) {
 
   const text = str(body.text, 2000).trim();
   if (!text) return Response.json({ error: "empty" }, { status: 400 });
-  const reply = await agentRespond(readState(body.state, lang, channel), text);
-  return Response.json(reply, { headers: { "cache-control": "no-store" } });
+  const state = readState(body.state, lang, channel);
+  if (body.stream !== true) {
+    const reply = await agentRespond(state, text);
+    return Response.json(reply, { headers: { "cache-control": "no-store" } });
+  }
+
+  // Streamed: one JSON object per line. {"type":"say","text":…} for each finished sentence as the model writes
+  // it, then {"type":"reply",…, "rest":…} with the new state and anything still left to say.
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(ctrl) {
+      const line = (o: unknown) => ctrl.enqueue(enc.encode(JSON.stringify(o) + "\n"));
+      try {
+        const reply = await agentRespond(state, text, { onSay: (sentence) => line({ type: "say", text: sentence }) });
+        line({ type: "reply", ...reply, rest: unsaid(reply) });
+      } catch {
+        line({ type: "error" });
+      }
+      ctrl.close();
+    },
+  });
+  return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-accel-buffering": "no" } });
 }

@@ -34,6 +34,22 @@ async function app(path, body) {
   return res;
 }
 
+/** Call onLine for each JSON line of a streamed (NDJSON) response, as it arrives. */
+async function readLines(res, onLine) {
+  const dec = new TextDecoder();
+  let buf = "";
+  const flush = (all) => {
+    const lines = buf.split("\n");
+    buf = all ? "" : (lines.pop() ?? "");
+    for (const l of lines) if (l.trim()) onLine(JSON.parse(l));
+  };
+  for await (const chunk of res.body) {
+    buf += dec.decode(chunk, { stream: true });
+    flush(false);
+  }
+  flush(true);
+}
+
 /** Run the case and collect the streamed result. */
 async function runCase(input) {
   const res = await app("/api/case", { ...input, victimName: input.name, contact: input.contact });
@@ -151,17 +167,28 @@ wss.on("connection", (ws) => {
     }
   }
 
+  // Each sentence is spoken the moment the helper writes it (Twilio reads streamed tokens aloud).
   async function turn(text) {
     if (call.busy || call.filing) return void call.queue.push(text);
     call.busy = true;
     try {
-      const r = await (await app("/api/agent", { lang: call.lang, channel: "phone", state: call.state, text })).json();
+      const res = await app("/api/agent", { lang: call.lang, channel: "phone", state: call.state, text, stream: true });
+      let r = null;
+      let spoke = false;
+      await readLines(res, (ev) => {
+        if (ev.type === "say" && ev.text) {
+          spoke = true;
+          out({ type: "text", token: ev.text + " ", last: false });
+        } else if (ev.type === "reply") r = ev;
+      });
+      if (!r) throw new Error("no reply");
       call.state = r.state;
       if (r.state?.lang && r.state.lang !== call.lang) {
         call.lang = r.state.lang;
         out({ type: "language", ttsLanguage: SPEECH[call.lang], transcriptionLanguage: SPEECH[call.lang] });
       }
-      say(r.say);
+      if (spoke) out({ type: "text", token: r.rest || "", last: true });
+      else say(r.say);
       if (r.end) {
         call.ended = true;
         hangUpAfter(r.say);

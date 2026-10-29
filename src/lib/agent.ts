@@ -9,7 +9,7 @@
 import { z } from "zod";
 import type { CaseInput } from "./caseStore";
 import { translate, type Key, type Lang } from "./i18n";
-import { llmConfigured, llmJson } from "./llm";
+import { llmAvailable, llmJson, llmJsonStream, partialString, sentenceEnd } from "./llm";
 
 export type Channel = "web" | "phone";
 export type Turn = { role: "caller" | "agent"; text: string };
@@ -20,7 +20,8 @@ export type Field = (typeof FIELDS)[number];
 export type Collected = Record<Field, string | null>;
 
 export type AgentState = { lang: Lang; channel: Channel; turns: Turn[]; collected: Collected; stage: Stage };
-export type AgentReply = { say: string; state: AgentState; input?: CaseInput; end?: boolean; aiUsed: boolean };
+/** `streamed` is the part of `say` already handed to onSay, sentence by sentence (empty when not streaming). */
+export type AgentReply = { say: string; state: AgentState; input?: CaseInput; end?: boolean; aiUsed: boolean; streamed?: string };
 
 export const emptyCollected = (): Collected => Object.fromEntries(FIELDS.map((f) => [f, null])) as Collected;
 export const newState = (lang: Lang, channel: Channel): AgentState => ({ lang, channel, turns: [], collected: emptyCollected(), stage: "gathering" });
@@ -156,7 +157,7 @@ function scripted(state: AgentState, text: string): { say: string; collected: Co
   const c = { ...state.collected };
   if (STOP.test(text)) return { say: t("ag.bye"), collected: c, stage: "closing" };
   if (state.stage === "confirming") {
-    return YES.test(text) ? { say: t("ag.filing"), collected: c, stage: "file" } : { say: t("ag.whatElse"), collected: c, stage: "gathering" };
+    return YES.test(text) && !NOT_YET.test(text) ? { say: t("ag.filing"), collected: c, stage: "file" } : { say: t("ag.whatElse"), collected: c, stage: "gathering" };
   }
   // This answer is about the question we just asked (the turn before the caller's).
   const lastAgent = [...state.turns].reverse().find((x) => x.role === "agent")?.text ?? "";
@@ -184,8 +185,36 @@ export function greeting(lang: Lang, channel: Channel) {
   return translate(lang, channel === "phone" ? "ag.helloPhone" : "ag.hello");
 }
 
-/** One turn of the conversation. */
-export async function agentRespond(prev: AgentState, callerText: string): Promise<AgentReply> {
+// "Not yet" means about the report itself. "No, I don't have the code. Yes, write it" is still a yes.
+const NOT_YET = /\b(wait|hold on|not yet|not now|don'?t (write|file|send|do|start)|no,? (don'?t|not|stop))\b|रुको|रुकिए|अभी नहीं|मत (लिखो|लिखिए|करो)|espera|todavía no|aún no|no lo (haga|escriba)/i;
+const MAX_SAY = 600;
+
+/** Hands out finished sentences of a reply that is still being written. */
+function sentenceFeed(onSay: (sentence: string) => void) {
+  let sent = 0;
+  let out = "";
+  return {
+    push(text: string, done: boolean) {
+      const t = text.slice(0, MAX_SAY);
+      const upto = done ? t.length : sentenceEnd(t);
+      if (upto <= sent) return;
+      const piece = t.slice(sent, upto).trim();
+      sent = upto;
+      if (!piece) return;
+      out = out ? `${out} ${piece}` : piece;
+      onSay(piece);
+    },
+    get streamed() {
+      return out;
+    },
+  };
+}
+
+/**
+ * One turn of the conversation. With onSay, the reply is spoken as it is written: each finished sentence is
+ * handed over straight away, and `streamed` in the result says how much of `say` that covered.
+ */
+export async function agentRespond(prev: AgentState, callerText: string, opts: { onSay?: (sentence: string) => void; timeoutMs?: number } = {}): Promise<AgentReply> {
   const text = callerText.trim().slice(0, 2000);
   const state: AgentState = { ...prev, turns: [...prev.turns, { role: "caller" as const, text }].slice(-MAX_TURNS) };
   let say: string;
@@ -193,40 +222,54 @@ export async function agentRespond(prev: AgentState, callerText: string): Promis
   let stage: Stage;
   let lang = state.lang;
   let aiUsed = false;
+  const feed = opts.onSay ? sentenceFeed(opts.onSay) : null;
+
+  // "Yes, please write it": nothing to ask a model, and the caller shouldn't wait.
+  const agreed = state.stage === "confirming" && YES.test(text) && !NOT_YET.test(text) && !STOP.test(text) && Boolean(state.collected.whatHappened);
 
   let out: z.infer<typeof Out> | null = null;
-  if (llmConfigured()) {
+  if (!agreed && llmAvailable()) {
+    const ask = {
+      system: system(state),
+      user:
+        `Facts so far: ${JSON.stringify(state.collected)}\nStage: ${state.stage}\n\nConversation:\n` +
+        state.turns.map((t) => `${t.role === "caller" ? "Caller" : "You"}: ${t.text}`).join("\n"),
+      schema: Out,
+      name: "helpline_turn",
+      maxTokens: 900,
+      // a live call can't sit in silence: past this, the scripted helper answers
+      timeoutMs: opts.timeoutMs ?? 12_000,
+    };
     try {
-      out = await llmJson({
-        system: system(state),
-        user:
-          `Facts so far: ${JSON.stringify(state.collected)}\nStage: ${state.stage}\n\nConversation:\n` +
-          state.turns.map((t) => `${t.role === "caller" ? "Caller" : "You"}: ${t.text}`).join("\n"),
-        schema: Out,
-        name: "helpline_turn",
-        maxTokens: 900,
-      });
+      out = feed
+        ? await llmJsonStream({
+            ...ask,
+            onText: (soFar) => {
+              const p = partialString(soFar, "say");
+              if (p) feed.push(p.text, p.done);
+            },
+          })
+        : await llmJson(ask);
     } catch (err) {
       console.warn("agent: model unavailable, using scripted helper:", err instanceof Error ? err.message : err);
     }
   }
-  if (out) {
+  if (agreed) {
+    collected = state.collected;
+    stage = "file";
+    say = translate(lang, "ag.filing");
+  } else if (out) {
     aiUsed = true;
     lang = out.lang;
     collected = sanitize(out.collected as Collected, state.collected, state);
     stage = out.stage;
-    say = out.say.trim().slice(0, 600);
+    say = out.say.trim().slice(0, MAX_SAY);
   } else {
     ({ say, collected, stage } = scripted(state, text));
   }
 
   // Never file without knowing what happened.
   if (stage === "file" && !collected.whatHappened) stage = "gathering";
-  // A confirmation from the caller is what moves us to filing.
-  if (state.stage === "confirming" && stage !== "closing" && stage !== "file" && YES.test(text) && !/\b(no|not|wait|don'?t)\b/i.test(text) && collected.whatHappened) {
-    stage = "file";
-    say = translate(lang, "ag.filing");
-  }
 
   const nextState: AgentState = { ...state, lang, collected, stage, turns: [...state.turns, { role: "agent" as const, text: say }].slice(-MAX_TURNS) };
   return {
@@ -235,7 +278,17 @@ export async function agentRespond(prev: AgentState, callerText: string): Promis
     input: stage === "file" ? toCaseInput(nextState) : undefined,
     end: stage === "closing",
     aiUsed,
+    ...(feed ? { streamed: feed.streamed } : {}),
   };
+}
+
+/** What is still left to say after the streamed part (all of it, if the model's reply was replaced). */
+export function unsaid(reply: Pick<AgentReply, "say" | "streamed">) {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+  const said = norm(reply.streamed ?? "");
+  const all = norm(reply.say);
+  if (!said) return all;
+  return all.startsWith(said) ? all.slice(said.length).trim() : all;
 }
 
 /** What the agent says once the case is done: the headline and the first things to do, in the caller's language. */
@@ -247,7 +300,7 @@ export function spokenSummary(
   const parts = [r.storyOnly ? t("r.story") : r.exchange ? t("r.found", { entity: r.exchange }) : t("r.notYet")];
   if (r.exchange) parts.push(t("ag.freezeSoon", { entity: r.exchange }));
   if (r.helpline) parts.push(t("ag.callHelpline", { name: r.helpline.name, phone: spokenNumber(r.helpline.phone) }));
-  if (r.storyOnly) parts.push(t("r.bank") + ".");
+  if (r.storyOnly) parts.push(t("r.bank") + (lang === "hi" ? "।" : "."));
   parts.push(r.channel === "web" ? t("ag.onScreen") : r.texted ? t("ag.textedLink", { caseId: spokenNumber(r.caseId) }) : t("ag.caseNumber", { caseId: spokenNumber(r.caseId) }));
   parts.push(t("r.never"));
   return parts.join(" ");

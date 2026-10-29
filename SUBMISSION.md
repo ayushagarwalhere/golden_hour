@@ -43,6 +43,14 @@ Also included:
 
 ## Built for elders, usable by everyone
 
+- **Just talk.** `/call` is a two-way voice call with a calm helper. It hears the victim out, comforts them, asks one simple question at a time, files the case and reads out what to do today. It behaves like a person on the phone:
+  - you can interrupt it mid-sentence, and it stops
+  - it waits longer when your sentence is still going ("…and then")
+  - it checks in gently if you go quiet
+  - it keeps you company while it works
+  - replies are streamed, so it starts speaking before the reply is finished
+
+  The same helper answers a real phone number (Twilio) and texts the caller a private link to their report.
 - One question per screen, big buttons, a large microphone, and **read-aloud on every step and result**, in the chosen language.
 - Text-size control, **high-contrast mode**, calm mode (no motion), and 44-pixel minimum touch targets.
 - **Zero axe-core WCAG 2.1 AA violations** on every page, every guided step and the results page, in both normal and high-contrast mode.
@@ -56,13 +64,14 @@ Also included:
 3. `/check` → "Show me an example": a typical "recovery agent" message, flagged and explained.
 4. Press **Aa · Help** and switch to हिन्दी, then start "I need help now" → "I was tricked into sending money" → "I don't have anything like that".
 5. Download the evidence file, open `/verify`, drop it in, then press "tamper with it".
+6. `/call` (Chrome, Edge or Safari): press **Start the call**, tell the helper what happened, and try talking over it.
 
 ## Engineering
 
 - Next.js 15, React 19, TypeScript; React Three Fiber for the money-trail graph.
 - Blockscout v2 for six EVM networks. TronGrid + Tronscan public tags for Tron, with per-host throttling so it runs without API keys.
 - Anthropic Claude (Haiku 5.5 by default, via the Anthropic API or OpenRouter) for story understanding and the statement of facts, both with structured output and a fact guard. **Everything works without an API key**: the deterministic intake and templates take over.
-- 50+ automated tests, covering:
+- 70+ automated tests, covering:
   - tracing against live cases (opt-in)
   - Tron address decoding and labels
   - issuer freeze letters and fraud-vs-theft wording
