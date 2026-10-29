@@ -46,20 +46,27 @@ export function Nav({ right }: { right?: React.ReactNode }) {
 }
 
 export function Footer() {
+  const t = useT();
   return (
-    <footer className="relative z-10 flex flex-col items-center gap-3 px-5 pb-10 text-center text-xs" style={{ color: "var(--faint)" }}>
-      <div className="flex flex-wrap justify-center gap-5">
-        <Link className="hover:underline" href="/judge">
-          Judge walkthrough
+    <footer className="relative z-10 flex flex-col items-center gap-3 px-5 pb-10 text-center text-sm" style={{ color: "var(--faint)" }}>
+      <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="Footer">
+        <Link className="hover:underline" href="/check">
+          {t("nav.check")}
+        </Link>
+        <Link className="hover:underline" href="/help">
+          {t("a.guide")}
         </Link>
         <Link className="hover:underline" href="/verify">
-          Verify an evidence file
+          {t("foot.verify")}
         </Link>
         <Link className="hover:underline" href="/about">
-          How it works &amp; limits
+          {t("foot.about")}
         </Link>
-      </div>
-      Golden Hour reads public data via Blockscout. It does not give legal advice and cannot guarantee recovery.
+        <Link className="hover:underline" href="/judge">
+          {t("foot.judge")}
+        </Link>
+      </nav>
+      <p className="max-w-2xl">{t("foot.note")}</p>
     </footer>
   );
 }
