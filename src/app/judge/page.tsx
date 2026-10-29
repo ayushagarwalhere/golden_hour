@@ -474,6 +474,10 @@ function Scorecard() {
     ["Edit a letter, then reload the page", "Your edits are kept on this device; nothing about Maya was stored on a server."],
     ["Verify the evidence, then tamper with it", "Download it, drop it into /verify, change one character — the fingerprint fails."],
     ["Notice what was never asked", "No recovery phrase, no private key, no payment. Real help never asks for those."],
+    ["Read the checklist at the top", "Built for a 75-year-old: tap-to-call the helpline, Copy my letter, Print everything for the police station, and a phone reminder to follow up in 3 days."],
+    ["Check a “recovery agent” message", "Open /check and tap “Show me an example”. Fourteen warning signs, explained in plain words, checked on the device — nothing is uploaded."],
+    ["Switch to हिन्दी or Español", "Use the Aa · Help button. The guided questions, results, read-aloud and scam checker all change; letters stay in English for police portals."],
+    ["Start a case with no code at all", "Choose “I need help now” → “I was tricked into sending money” → “I don't have anything like that”. Phone and Bitcoin-ATM victims still get a police report."],
   ];
   return (
     <section className="relative z-10 mx-auto max-w-6xl px-4 pb-24 md:px-8">
@@ -502,6 +506,9 @@ function Scorecard() {
           </Link>
           <Link className="btn btn-ghost btn-sm" href="/?demo=1">
             Try a second real case (KuCoin)
+          </Link>
+          <Link className="btn btn-ghost btn-sm" href="/check" target="_blank">
+            Is this a scam? checker
           </Link>
           <a className="btn btn-ghost btn-sm" href={CASE.source} target="_blank" rel="noreferrer">
             Read SlowMist&apos;s analysis ↗

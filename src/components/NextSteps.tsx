@@ -9,6 +9,7 @@ import type { CaseDocument } from "@/lib/documents";
 import { hasKey, speechLang, type Key } from "@/lib/i18n";
 import { speak, stopSpeaking, usePrefs, useT } from "@/lib/prefs";
 import type { TraceResult } from "@/lib/trace";
+import { followUpDate, followUpLetter, reminderIcs } from "@/lib/followup";
 
 /*
   The first thing a victim sees after their case runs: what happened in two sentences,
@@ -43,14 +44,23 @@ export default function NextSteps({ trace, result, input, onRecheck, onNew }: { 
 
   const police = result.documents.find((d) => d.id === "police");
   const freezes = result.documents.filter((d) => d.id.startsWith("freeze"));
+  const issuers = result.documents.filter((d) => d.id.startsWith("issuer-"));
+  const issuerName = (d: CaseDocument) => d.title.match(/— (\w+) \((\w+)\)/)?.slice(1) ?? [d.title, ""];
   const country = input?.country && input.country !== "OTHER" ? input.country : null;
   const helplines = helplinesFor(country);
   const top = trace?.freezeTargets[0];
   const taken = trace?.stolen.map((s) => `${fmt(s.amount)} ${s.asset}`).join(" + ");
   const totalUsd = trace?.stolen.reduce((s, a) => s + (a.usd ?? 0), 0) ?? 0;
 
-  const headline = result.storyOnly ? t("r.story") : top ? t("r.found", { entity: top.entity }) : t("r.notYet");
-  const sub = result.storyOnly ? t("r.storySub") : top ? t("r.foundSub", { entity: top.entity }) : t("r.notYetSub");
+  const firstIssuer = issuers[0] ? issuerName(issuers[0])[0] : null;
+  const headline = result.storyOnly ? t("r.story") : top ? t("r.found", { entity: top.entity }) : firstIssuer ? t("r.held") : t("r.notYet");
+  const sub = result.storyOnly
+    ? t("r.storySub")
+    : top
+      ? t("r.foundSub", { entity: top.entity })
+      : firstIssuer
+        ? t("r.heldSub", { issuer: firstIssuer })
+        : t("r.notYetSub");
   const notice = result.notice === "other-network" ? t("r.otherNet") : result.notice ? t("r.notice") : null;
 
   async function copy(id: string, text: string) {
@@ -113,6 +123,20 @@ export default function NextSteps({ trace, result, input, onRecheck, onNew }: { 
       ),
     });
   }
+  for (const d of issuers) {
+    const [issuer, asset] = issuerName(d);
+    items.push({
+      id: d.id,
+      icon: "🪙",
+      title: t("r.issuer", { issuer }),
+      sub: t("r.issuerSub", { issuer, asset }),
+      actions: (
+        <button type="button" className="btn btn-sun" onClick={() => copy(d.id, bodyOf(result.caseId, d))}>
+          {copied === d.id ? t("r.copied") : `📋 ${t("r.copyLetter")}`}
+        </button>
+      ),
+    });
+  }
   if (police) {
     const portal = police.sendTo.find((s) => s.url);
     items.push({
@@ -134,6 +158,42 @@ export default function NextSteps({ trace, result, input, onRecheck, onNew }: { 
       ),
     });
   }
+  const letters = [...freezes, ...issuers];
+  const sentOn = caseStore.get(result.caseId)?.savedAt ?? new Date().toISOString();
+  const due = followUpDate(sentOn);
+  const dueText = due.toLocaleDateString(speechLang(lang), { weekday: "long", day: "numeric", month: "long" });
+  function remind() {
+    const ics = reminderIcs({
+      uid: `${result.caseId}-followup`,
+      start: due,
+      title: t("r.remindTitle", { caseId: result.caseId }),
+      description: t("r.remindBody"),
+      url: `${location.origin}/?case=${result.caseId}`,
+    });
+    download(`${result.caseId}-reminder.ics`, ics, "text/calendar");
+  }
+  items.push({
+    id: "follow",
+    icon: "📅",
+    title: t("r.follow", { date: dueText }),
+    sub: t("r.followSub"),
+    actions: (
+      <>
+        <button type="button" className="btn btn-sun" onClick={remind}>
+          {t("r.remind")}
+        </button>
+        {letters.map((d) => {
+          const entity = d.title.replace(/^(Freeze request|Stablecoin freeze) — /, "").replace(/ \(.*\)$/, "");
+          const id = `follow-${d.id}`;
+          return (
+            <button key={id} type="button" className="btn btn-ghost" onClick={() => copy(id, followUpLetter({ ...d, body: bodyOf(result.caseId, d) }, result.caseId, sentOn, input?.name || null))}>
+              {copied === id ? t("r.copied") : t("r.copyFollow", { entity })}
+            </button>
+          );
+        })}
+      </>
+    ),
+  });
   items.push({
     id: "save",
     icon: "💾",
@@ -271,7 +331,12 @@ export default function NextSteps({ trace, result, input, onRecheck, onNew }: { 
           <span aria-hidden style={{ color: "var(--danger)" }}>
             ⚠
           </span>
-          {t("r.never")}
+          <span>
+            {t("r.never")}{" "}
+            <a className="link whitespace-nowrap" href="/check">
+              {t("chk.cta")} →
+            </a>
+          </span>
         </p>
         {lang !== "en" && (
           <p className="mt-4 text-base" style={{ color: "var(--faint)" }}>

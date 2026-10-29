@@ -125,3 +125,9 @@ export async function extractIntake(
     return { intake: base, aiUsed: false, note };
   }
 }
+
+/**
+ * In these scams the victim pressed "send" themselves after being lied to. Legally that's fraud by deception
+ * (an authorised push payment), not an unauthorised theft, and the documents must say so accurately.
+ */
+export const wasDeceived = (scamType: Intake["scamType"]) => scamType === "investment_or_romance" || scamType === "fake_support" || scamType === "address_poisoning";

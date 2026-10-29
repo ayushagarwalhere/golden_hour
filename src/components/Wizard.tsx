@@ -31,7 +31,8 @@ const STEPS = ["what", "story", "code", "country", "you", "review"] as const;
 type StepId = (typeof STEPS)[number];
 
 const TX = /^0x[a-fA-F0-9]{64}$/;
-const ADDR = /^0x[a-fA-F0-9]{40}$/;
+// 0x… (Ethereum-type networks) or T… (Tron)
+const ADDR = /^(0x[a-fA-F0-9]{40}|T[1-9A-HJ-NP-Za-km-z]{33})$/;
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const amt = (n: number) => (n >= 1000 ? n.toLocaleString("en-US", { maximumFractionDigits: 0 }) : n >= 1 ? n.toLocaleString("en-US", { maximumFractionDigits: 4 }) : n.toPrecision(3));
 
@@ -335,14 +336,14 @@ function Nav({ onBack, onNext, nextLabel, nextDisabled }: { onBack: () => void; 
 function Row({ label, onChange, children }: { label: string; onChange: () => void; children: React.ReactNode }) {
   const t = useT();
   return (
-    <div className="flex items-start justify-between gap-4 rounded-2xl border p-4" style={{ borderColor: "var(--line)" }}>
-      <div className="min-w-0">
-        <dt className="label">{label}</dt>
-        <dd className="mt-1 break-words text-lg">{children}</dd>
-      </div>
-      <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={onChange}>
-        {t("change")}
-      </button>
+    <div className="rounded-2xl border p-4" style={{ borderColor: "var(--line)" }}>
+      <dt className="label">{label}</dt>
+      <dd className="mt-1 flex items-start justify-between gap-4">
+        <span className="min-w-0 break-words text-lg">{children}</span>
+        <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={onChange} aria-label={`${t("change")}: ${label}`}>
+          {t("change")}
+        </button>
+      </dd>
     </div>
   );
 }
@@ -516,7 +517,7 @@ function AddressPicker({ address, setAddress, picked, setPicked }: { address: st
       <div className="flex gap-2">
         <input
           className="field mono text-base"
-          placeholder="0x…"
+          placeholder="0x… / T…"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && look()}

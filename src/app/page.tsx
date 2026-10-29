@@ -82,6 +82,9 @@ export default function Home() {
           <button className="btn btn-ghost btn-solid" onClick={() => start(DEMOS.kucoin.input)} disabled={c.status === "tracing"}>
             {t("hero.example")}
           </button>
+          <Link className="btn btn-ghost btn-solid" href="/check">
+            🔍 {t("chk.cta")}
+          </Link>
           <Link className="mt-2 rounded-full px-4 py-2 text-sm underline underline-offset-4" style={{ background: "rgba(22,12,28,0.55)", color: "var(--cream)" }} href="/judge">
             {t("hero.judges")}
           </Link>
@@ -134,19 +137,19 @@ export default function Home() {
 
         {saved.length > 0 && c.status !== "done" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass mt-6 p-6">
-            <div className="label">Your cases on this device</div>
+            <div className="label">{t("saved.title")}</div>
             <ul className="mt-3 flex flex-col gap-2 text-sm">
               {saved.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2">
                   <button className="link text-left" onClick={() => (c.load(s.id), history.replaceState(null, "", `/?case=${s.id}`), setTimeout(() => scrollToId("results"), 300))}>
                     {s.id} ·{" "}
-                    {s.trace ? s.trace.stolen.map((x) => `${x.amount.toPrecision(4)} ${x.asset}`).join(" + ") : "Police report"}
+                    {s.trace ? s.trace.stolen.map((x) => `${x.amount.toPrecision(4)} ${x.asset}`).join(" + ") : t("saved.report")}
                     {s.trace?.freezeTargets[0] ? ` → ${s.trace.freezeTargets[0].entity}` : ""}
                   </button>
                   <span className="flex items-center gap-3" style={{ color: "var(--faint)" }}>
                     {new Date(s.savedAt).toLocaleDateString()}
                     <button className="text-xs underline" onClick={() => (caseStore.remove(s.id), setSaved(caseStore.list()))}>
-                      delete
+                      {t("saved.delete")}
                     </button>
                   </span>
                 </li>
@@ -160,15 +163,15 @@ export default function Home() {
       {c.status !== "done" && (
         <section className="relative z-10 mx-auto grid max-w-6xl gap-5 px-4 pb-40 md:grid-cols-3 md:px-8">
           {[
-            ["01", "Follow", "We trace the stolen funds hop by hop through public blockchain records — through swaps — until they land somewhere that knows a name."],
-            ["02", "Find who can freeze it", "Exchanges verify their customers' identity. When stolen funds reach a deposit address, that exchange can freeze them and identify the account."],
-            ["03", "Send", "You get a freeze request for each exchange, a police report, and an evidence file whose fingerprint proves it hasn't been altered."],
-          ].map(([n, t, d], i) => (
+            ["01", t("how.1t"), t("how.1d")],
+            ["02", t("how.2t"), t("how.2d")],
+            ["03", t("how.3t"), t("how.3d")],
+          ].map(([n, title, d], i) => (
             <motion.div key={n} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 1.1, ease, delay: i * 0.12 }} className="glass p-7">
               <div className="serif text-5xl" style={{ color: "var(--gold)" }}>
                 {n}
               </div>
-              <div className="mt-4 text-xl font-medium">{t}</div>
+              <div className="mt-4 text-xl font-medium">{title}</div>
               <p className="mt-3 text-sm leading-6" style={{ color: "var(--mist)" }}>
                 {d}
               </p>
