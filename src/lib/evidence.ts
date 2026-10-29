@@ -3,6 +3,7 @@ import { canonical } from "./canonical";
 import type { Intake } from "./intake";
 import type { OtherRef } from "./refs";
 import type { TraceResult } from "./trace";
+import { txUrl } from "./links";
 
 export { canonical };
 
@@ -29,7 +30,6 @@ export type EvidencePack = {
 
 export function buildEvidencePack(trace: TraceResult, intake: Intake): { pack: EvidencePack; sha256: string; json: string } {
   const createdAt = trace.generatedAt;
-  const explorer = explorerFor(trace);
   const seed = createHash("sha256").update(trace.seedTxs.join(",") + createdAt).digest("hex");
   const pack: EvidencePack = {
     format: "golden-hour/evidence-pack@1",
@@ -39,9 +39,9 @@ export function buildEvidencePack(trace: TraceResult, intake: Intake): { pack: E
     dataSource: trace.source,
     victimStatement: { summary: intake.howItHappened, scamType: intake.scamType, scammerIdentifiers: intake.scammerIdentifiers },
     victim: trace.victim,
-    theftTransactions: trace.seedTxs.map((h) => ({ hash: h, url: `${explorer}/tx/${h}` })),
+    theftTransactions: trace.seedTxs.map((h) => ({ hash: h, url: txUrl(trace, h) })),
     stolen: trace.stolen,
-    transfers: trace.edges.map((e) => ({ ...e, url: `${explorer}/tx/${e.txHash}` })),
+    transfers: trace.edges.map((e) => ({ ...e, url: txUrl(trace, e.txHash) })),
     swaps: trace.swaps,
     addresses: trace.nodes,
     exchangeEndpoints: trace.freezeTargets,

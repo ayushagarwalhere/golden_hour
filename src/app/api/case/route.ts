@@ -1,11 +1,13 @@
 import { actionPlan, buildDocuments, storyPlan, storyPoliceReport } from "@/lib/documents";
 import { buildEvidencePack, buildStatementPack } from "@/lib/evidence";
+import { lawyerBrief } from "@/lib/lawyer";
 import { clientIp, makeLimiter } from "@/lib/rateLimit";
 import { otherChainRefs } from "@/lib/refs";
 import { extractIntake } from "@/lib/intake";
 import { statementOfFacts } from "@/lib/narrative";
 import { BlockscoutError } from "@/lib/blockscout";
-import { TraceInputError, traceTheft } from "@/lib/trace";
+import { TraceInputError, traceTheft, type TraceResult } from "@/lib/trace";
+import { findTronTx, TRON_ADDR, TronError, traceTron } from "@/lib/tron";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -14,6 +16,7 @@ type Body = { story?: unknown; txHashes?: unknown; victimAddress?: unknown; coun
 
 const TX = /^0x[a-fA-F0-9]{64}$/;
 const ADDR = /^0x[a-fA-F0-9]{40}$/;
+const HEX64 = /^[a-fA-F0-9]{64}$/;
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
 const limited = makeLimiter(Number(process.env.CASES_PER_10_MIN ?? 8));
@@ -30,12 +33,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "bad_json" }, { status: 400 });
   }
 
+  const codes = (Array.isArray(body.txHashes) ? body.txHashes : []).map((s) => str(s, 80));
+  const rawVictim = str(body.victimAddress, 60);
   const hints = {
-    txHashes: (Array.isArray(body.txHashes) ? body.txHashes : [])
-      .map((s) => str(s, 80))
-      .filter((s) => TX.test(s))
-      .slice(0, 5),
-    victimAddress: ADDR.test(str(body.victimAddress, 60)) ? str(body.victimAddress, 60) : undefined,
+    txHashes: codes.filter((s) => TX.test(s)).slice(0, 5),
+    victimAddress: ADDR.test(rawVictim) ? rawVictim : undefined,
     country: /^[A-Z]{2}$/.test(str(body.country, 2)) ? str(body.country, 2) : undefined,
     victimName: str(body.victimName, 120) || undefined,
     contact: str(body.contact, 160) || undefined,
@@ -74,12 +76,36 @@ export async function POST(req: Request) {
             sha256: evidence.sha256,
             evidenceJson: evidence.json,
             narrative,
-            documents: [storyPoliceReport(intake, narrative.text, evidence.pack.caseId, evidence.sha256, refs, createdAt)],
+            documents: [
+              storyPoliceReport(intake, narrative.text, evidence.pack.caseId, evidence.sha256, refs, createdAt),
+              lawyerBrief(intake, null, evidence.pack.caseId, evidence.sha256, createdAt),
+            ],
             plan: storyPlan(intake),
           });
         };
 
+        // No 0x code: a 64-character code may be a Tron transaction (most USDT scams run on Tron).
+        let trace: TraceResult | null = null;
         if (!intake.txHashes.length) {
+          const tronCodes = [...new Set([...codes.filter((c) => HEX64.test(c)), ...refs.filter((r) => r.kind === "transaction" && HEX64.test(r.value)).map((r) => r.value)])]
+            .map((c) => c.toLowerCase())
+            .slice(0, 5);
+          if (tronCodes.length) {
+            send({ type: "step", message: "Checking whether your code is from the Tron network…" });
+            const found = (await Promise.all(tronCodes.map((c) => findTronTx(c)))).map((tx, i) => (tx ? tronCodes[i] : null)).filter((c): c is string => !!c);
+            if (found.length) {
+              try {
+                trace = await traceTron({ txHashes: found, victim: TRON_ADDR.test(rawVictim) ? rawVictim : null }, (e) => send(e));
+              } catch (err) {
+                if (!(err instanceof TraceInputError || err instanceof TronError) || !story) throw err;
+                storyOnly(err instanceof TraceInputError ? err.message : "other-network");
+                return controller.close();
+              }
+            }
+          }
+        }
+
+        if (!intake.txHashes.length && !trace) {
           if (!story) {
             send({ type: "error", message: "Tell me a little about what happened, or paste the code of the transfer, so I can help." });
             return controller.close();
@@ -88,9 +114,8 @@ export async function POST(req: Request) {
           return controller.close();
         }
 
-        let trace;
         try {
-          trace = await traceTheft({ txHashes: intake.txHashes.slice(0, 5), victim: intake.victimAddress }, (e) => send(e));
+          trace ??= await traceTheft({ txHashes: intake.txHashes.slice(0, 5), victim: intake.victimAddress }, (e) => send(e));
         } catch (err) {
           // e.g. the code isn't on a network we can follow — the victim still gets a report
           if (err instanceof TraceInputError && story) {
@@ -104,7 +129,8 @@ export async function POST(req: Request) {
         send({ type: "step", message: "Writing your statement of facts…" });
         const evidence = buildEvidencePack(trace, intake);
         const narrative = await statementOfFacts(trace, intake);
-        const documents = buildDocuments(trace, intake, narrative.text, evidence.pack.caseId, evidence.sha256, refs);
+        const traced = new Set(trace.seedTxs.map((h) => h.toLowerCase()));
+        const documents = buildDocuments(trace, intake, narrative.text, evidence.pack.caseId, evidence.sha256, refs.filter((r) => !traced.has(r.value.toLowerCase())));
         send({
           type: "result",
           caseId: evidence.pack.caseId,
@@ -121,7 +147,7 @@ export async function POST(req: Request) {
           message:
             err instanceof TraceInputError
               ? err.message // written for the victim
-              : err instanceof BlockscoutError
+              : err instanceof BlockscoutError || err instanceof TronError
                 ? "The public blockchain data service is busy right now. Please try again in a minute — your details are still filled in."
                 : "Something went wrong on our side. Please try again in a minute — your details are still filled in.",
         });

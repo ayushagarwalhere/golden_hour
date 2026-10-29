@@ -1,15 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ai, aiConfigured, MODEL, type Intake } from "./intake";
+import { ai, aiConfigured, MODEL, wasDeceived, type Intake } from "./intake";
 import { fmt, type TraceResult } from "./trace";
 
-const HEX_RE = /0x[a-fA-F0-9]{40,64}/g;
+// 0x codes, bare 64-hex hashes (Tron) and Tron addresses: every one the AI writes must exist in the trace
+const HEX_RE = /0x[a-fA-F0-9]{40,64}|(?<![0-9a-zA-Z])[a-fA-F0-9]{64}(?![0-9a-zA-Z])|(?<![0-9a-zA-Z])T[1-9A-HJ-NP-Za-km-z]{33}(?![0-9a-zA-Z])/g;
 const utc = (iso: string) => iso.replace("T", " ").replace(/\.\d+Z$/, " UTC").replace(/Z$/, " UTC");
 
 /** Template statement — used when no model is available, and as the reference the AI version must agree with. */
 export function templateNarrative(trace: TraceResult, intake: Intake): string {
   const stolen = trace.stolen.map((s) => `${fmt(s.amount)} ${s.asset}`).join(" and ");
+  const deceived = wasDeceived(intake.scamType);
   const lines = [
-    `On ${utc(trace.theftTime)}, ${stolen} was transferred out of my wallet ${trace.victim} without my authorisation (transaction ${trace.seedTxs.join(", ")}).`,
+    deceived
+      ? `On ${utc(trace.theftTime)}, I was deceived into sending ${stolen} from my wallet ${trace.victim} (transaction ${trace.seedTxs.join(", ")}).`
+      : `On ${utc(trace.theftTime)}, ${stolen} was transferred out of my wallet ${trace.victim} without my authorisation (transaction ${trace.seedTxs.join(", ")}).`,
     intake.howItHappened,
   ];
   const hops = Math.max(...trace.edges.map((e) => e.hop));
@@ -26,7 +30,10 @@ export function templateNarrative(trace: TraceResult, intake: Intake): string {
   }
   if (trace.swaps.length)
     lines.push(`Along the way the funds were swapped (${trace.swaps.map((s) => `${fmt(s.fromAmount)} ${s.fromAsset} to ${fmt(s.toAmount)} ${s.toAsset}`).join("; ")}).`);
-  lines.push("I did not authorise any of these transfers. A full list of the transfers, with links to the public records, is attached as an evidence file.");
+  lines.push(
+    (deceived ? "I sent that payment only because I was deceived, and I had no part in any of the later transfers. " : "I did not authorise any of these transfers. ") +
+      "A full list of the transfers, with links to the public records, is attached as an evidence file.",
+  );
   return lines.join(" ");
 }
 
@@ -44,6 +51,9 @@ export async function statementOfFacts(trace: TraceResult, intake: Intake): Prom
     theftTime: trace.theftTime,
     theftTransactions: trace.seedTxs,
     stolen: trace.stolen,
+    howTheFundsLeft: wasDeceived(intake.scamType)
+      ? "The victim sent the first payment themselves because they were deceived (fraud). Do not call it unauthorised."
+      : "Taken from the victim's wallet without their authorisation (theft).",
     victimAccount: { scamType: intake.scamType, summary: intake.howItHappened, when: intake.incidentTime, scammerIdentifiers: intake.scammerIdentifiers },
     swaps: trace.swaps,
     exchanges: trace.freezeTargets,
@@ -62,7 +72,7 @@ export async function statementOfFacts(trace: TraceResult, intake: Intake): Prom
         "You write the 'statement of facts' section of a victim's police report about stolen cryptocurrency. " +
         "Write in the first person as the victim, in plain, calm, factual English, chronological, 120-220 words, no headings or bullet points. " +
         "Use only the facts in the JSON you're given. Copy any address or transaction hash exactly; don't mention any that are not in the JSON. " +
-        "Give times in UTC. Don't speculate about who the thief is, and don't make legal conclusions.",
+        "Describe how the funds left exactly as howTheFundsLeft says. Give times in UTC. Don't speculate about who the thief is, and don't make legal conclusions.",
       messages: [{ role: "user", content: `<facts>\n${JSON.stringify(facts, null, 1)}\n</facts>` }],
     });
     if (res.stop_reason === "refusal") return { text: fallback, aiUsed: false };

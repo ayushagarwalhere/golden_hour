@@ -8,6 +8,7 @@ import { caseStore, type CaseInput, type CaseResult } from "@/lib/caseStore";
 import NextSteps, { download } from "./NextSteps";
 import type { TraceNode, TraceResult } from "@/lib/trace";
 import { KIND_LABEL } from "./TraceGraph";
+import { addrUrl, txUrl } from "@/lib/links";
 
 export type { CaseResult };
 
@@ -15,8 +16,7 @@ const TraceGraph = dynamic(() => import("./TraceGraph"), { ssr: false });
 
 export type JudgeNotes = Partial<Record<"summary" | "trail" | "plan" | "letters" | "evidence", React.ReactNode>>;
 
-// older saved cases (before multi-chain) have no explorer/chainName
-const explorerOf = (t: TraceResult) => t.explorer ?? "https://eth.blockscout.com";
+// older saved cases (before multi-chain) have no chainName
 const chainOf = (t: TraceResult) => t.chainName ?? "Ethereum";
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const fmt = (n: number) => (n >= 1000 ? n.toLocaleString("en-US", { maximumFractionDigits: 0 }) : n >= 1 ? n.toLocaleString("en-US", { maximumFractionDigits: 3 }) : n.toPrecision(3));
@@ -116,7 +116,7 @@ function Documents({ result }: { result: CaseResult }) {
           <span className="chip absolute right-6 top-6">{edited ? "edited · saved on this device" : "click to edit"}</span>
           <pre className="print-only print-doc printable mono doc">{body}</pre>
         </div>
-        <aside className="flex flex-col gap-5 border-t p-6 md:border-l md:border-t-0" style={{ borderColor: "var(--line)" }}>
+        <div className="flex flex-col gap-5 border-t p-6 md:border-l md:border-t-0" style={{ borderColor: "var(--line)" }}>
           <div>
             <div className="label">For</div>
             <div className="mt-1">{doc.audience}</div>
@@ -168,7 +168,7 @@ function Documents({ result }: { result: CaseResult }) {
               </button>
             )}
           </div>
-        </aside>
+        </div>
       </div>
     </div>
   );
@@ -209,7 +209,6 @@ export default function Results({
 
 function TraceDetails({ trace, notes }: { trace: TraceResult; notes?: JudgeNotes }) {
   const [hover, setHover] = useState<TraceNode | null>(null);
-  const explorer = explorerOf(trace);
   const totalUsd = trace.stolen.reduce((s, a) => s + (a.usd ?? 0), 0);
   const moving = trace.nodes.filter((n) => n.kind !== "victim" && n.holdingNow?.length);
 
@@ -305,7 +304,7 @@ function TraceDetails({ trace, notes }: { trace: TraceResult; notes?: JudgeNotes
                       {short(e.from)} → {short(e.to)}
                     </td>
                     <td>
-                      <a className="link" href={`${explorer}/tx/${e.txHash}`} target="_blank" rel="noreferrer">
+                      <a className="link" href={txUrl(trace, e.txHash)} target="_blank" rel="noreferrer">
                         {short(e.txHash)} ↗
                       </a>
                     </td>
@@ -323,7 +322,7 @@ function TraceDetails({ trace, notes }: { trace: TraceResult; notes?: JudgeNotes
           <ul className="mt-3 grid gap-2 text-sm md:grid-cols-2">
             {moving.map((n) => (
               <li key={n.address} className="mono">
-                <a className="link" href={`${explorer}/address/${n.address}`} target="_blank" rel="noreferrer">
+                <a className="link" href={addrUrl(trace, n.address)} target="_blank" rel="noreferrer">
                   {short(n.address)}
                 </a>{" "}
                 — {n.holdingNow!.map((h) => `${fmt(h.amount)} ${h.symbol}`).join(", ")}

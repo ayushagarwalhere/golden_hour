@@ -39,7 +39,7 @@ export type FreezeTarget = {
 };
 
 export type TraceResult = {
-  chain: ChainId;
+  chain: ChainId | "tron";
   chainName: string; // e.g. "Base"
   explorer: string; // e.g. "https://base.blockscout.com" — use for tx/address links
   nativeSymbol: string; // ETH, POL, xDAI…
@@ -217,15 +217,7 @@ export async function traceTheft(
   }
 
   // ---- 3. Deposit-address inference: a plain wallet that sweeps into an exchange hot wallet ----
-  for (const e of edges) {
-    const to = nodes.get(e.to);
-    const from = nodes.get(e.from);
-    if (to?.kind === "exchange_hot" && from && (from.kind === "wallet" || from.kind === "exchange_deposit")) {
-      from.kind = "exchange_deposit";
-      from.entity = to.entity;
-      from.inferred ??= `Forwards funds to ${to.labels[0] ?? to.entity} — behaves like a ${to.entity ?? "exchange"} customer deposit address`;
-    }
-  }
+  inferDeposits(nodes, edges);
 
   // ---- 4. Is money still sitting anywhere? ----
   const watch = [...nodes.values()].filter((n) => n.kind === "wallet" || n.kind === "exchange_deposit" || n.kind === "scam");
@@ -250,31 +242,7 @@ export async function traceTheft(
   );
 
   // ---- 5. Summaries ----
-  const freeze = new Map<string, FreezeTarget>();
-  for (const e of edges) {
-    const n = nodes.get(e.to);
-    if (!n || (n.kind !== "exchange_deposit" && n.kind !== "exchange_hot")) continue;
-    // Count value once: at the deposit address if we have one, else at the hot wallet.
-    const fromNode = nodes.get(e.from);
-    if (n.kind === "exchange_hot" && fromNode?.kind === "exchange_deposit") continue;
-    const entity = n.entity ?? "Unknown exchange";
-    const ft = freeze.get(entity) ?? { entity, depositAddresses: [], hotWallets: [], amounts: [], firstArrival: e.timestamp, txHashes: [] };
-    const list = n.kind === "exchange_deposit" ? ft.depositAddresses : ft.hotWallets;
-    if (!list.includes(n.address)) list.push(n.address);
-    const amt = ft.amounts.find((a) => a.asset === e.asset);
-    if (amt) {
-      amt.amount += e.amount;
-      amt.usd = amt.usd !== null && e.usd !== null ? amt.usd + e.usd : null;
-    } else ft.amounts.push({ asset: e.asset, amount: e.amount, usd: e.usd });
-    if (e.timestamp < ft.firstArrival) ft.firstArrival = e.timestamp;
-    if (!ft.txHashes.includes(e.txHash)) ft.txHashes.push(e.txHash);
-    freeze.set(entity, ft);
-  }
-  for (const ft of freeze.values())
-    for (const d of ft.depositAddresses)
-      for (const e of edges) if (e.from === d && nodes.get(e.to)?.kind === "exchange_hot" && !ft.hotWallets.includes(e.to)) ft.hotWallets.push(e.to);
-
-  const freezeTargets = [...freeze.values()].sort((a, b) => totalUsd(b) - totalUsd(a));
+  const freezeTargets = freezeTargetsFrom(nodes, edges);
   emit({
     type: "step",
     message: freezeTargets.length
@@ -456,3 +424,43 @@ export function fmt(n: number) {
 }
 
 const totalUsd = (f: FreezeTarget) => f.amounts.reduce((s, a) => s + (a.usd ?? 0), 0);
+
+/** A plain wallet that forwards funds into a labelled exchange hot wallet behaves like a customer deposit address. */
+export function inferDeposits(nodes: Map<string, TraceNode>, edges: TraceEdge[]) {
+  for (const e of edges) {
+    const to = nodes.get(e.to);
+    const from = nodes.get(e.from);
+    if (to?.kind === "exchange_hot" && from && (from.kind === "wallet" || from.kind === "exchange_deposit")) {
+      from.kind = "exchange_deposit";
+      from.entity = to.entity;
+      from.inferred ??= `Forwards funds to ${to.labels[0] ?? to.entity} — behaves like a ${to.entity ?? "exchange"} customer deposit address`;
+    }
+  }
+}
+
+/** Group what reached each exchange, counting value once (at the deposit address when we have one). */
+export function freezeTargetsFrom(nodes: Map<string, TraceNode>, edges: TraceEdge[]): FreezeTarget[] {
+  const freeze = new Map<string, FreezeTarget>();
+  for (const e of edges) {
+    const n = nodes.get(e.to);
+    if (!n || (n.kind !== "exchange_deposit" && n.kind !== "exchange_hot")) continue;
+    const fromNode = nodes.get(e.from);
+    if (n.kind === "exchange_hot" && fromNode?.kind === "exchange_deposit") continue;
+    const entity = n.entity ?? "Unknown exchange";
+    const ft = freeze.get(entity) ?? { entity, depositAddresses: [], hotWallets: [], amounts: [], firstArrival: e.timestamp, txHashes: [] };
+    const list = n.kind === "exchange_deposit" ? ft.depositAddresses : ft.hotWallets;
+    if (!list.includes(n.address)) list.push(n.address);
+    const amt = ft.amounts.find((a) => a.asset === e.asset);
+    if (amt) {
+      amt.amount += e.amount;
+      amt.usd = amt.usd !== null && e.usd !== null ? amt.usd + e.usd : null;
+    } else ft.amounts.push({ asset: e.asset, amount: e.amount, usd: e.usd });
+    if (e.timestamp < ft.firstArrival) ft.firstArrival = e.timestamp;
+    if (!ft.txHashes.includes(e.txHash)) ft.txHashes.push(e.txHash);
+    freeze.set(entity, ft);
+  }
+  for (const ft of freeze.values())
+    for (const d of ft.depositAddresses)
+      for (const e of edges) if (e.from === d && nodes.get(e.to)?.kind === "exchange_hot" && !ft.hotWallets.includes(e.to)) ft.hotWallets.push(e.to);
+  return [...freeze.values()].sort((a, b) => totalUsd(b) - totalUsd(a));
+}

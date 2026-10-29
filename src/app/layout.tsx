@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Golden Hour — the next hour matters",
   description:
     "Crypto stolen? Golden Hour follows your funds across the blockchain to the exchange that received them, and drafts the freeze request and police report — in minutes.",
+  applicationName: "Golden Hour",
+  appleWebApp: { capable: true, title: "Golden Hour", statusBarStyle: "black-translucent" },
+  icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }], apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = { themeColor: "#160c1c" };
@@ -27,6 +30,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           {children}
           <AccessBar />
         </PrefsProvider>
+        {/* offline support in production only: in development it would cache stale builds */}
+        {process.env.NODE_ENV === "production" && (
+          <script dangerouslySetInnerHTML={{ __html: `if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))` }} />
+        )}
       </body>
     </html>
   );

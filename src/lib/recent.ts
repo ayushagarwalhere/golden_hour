@@ -6,7 +6,7 @@ import { CHAINS, CHAIN_ORDER, type ChainId } from "./chains";
 import { units } from "./trace";
 
 export type RecentTransfer = {
-  chain: ChainId;
+  chain: ChainId | "tron";
   chainName: string;
   txHash: string;
   timestamp: string;
