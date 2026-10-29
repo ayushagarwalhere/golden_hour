@@ -85,7 +85,8 @@ export async function statementOfFacts(
     victim: trace.victim,
     theftTime: trace.theftTime,
     theftTransactions: trace.seedTxs,
-    stolen: trace.stolen,
+    // amounts only: USD values are at today's price, and the model must not present them as the value at the time
+    stolen: trace.stolen.map((x) => ({ asset: x.asset, amount: x.amount })),
     howTheFundsLeft: wasDeceived(intake.scamType)
       ? "The victim sent the first payment themselves because they were deceived (fraud). Do not call it unauthorised."
       : "Taken from the victim's wallet without their authorisation (theft).",
@@ -96,7 +97,7 @@ export async function statementOfFacts(
       scammerIdentifiers: intake.scammerIdentifiers,
     },
     swaps: trace.swaps,
-    exchanges: trace.freezeTargets,
+    exchanges: trace.freezeTargets.map((f) => ({ ...f, amounts: f.amounts.map((x) => ({ asset: x.asset, amount: x.amount })) })),
     otherEndpoints: trace.otherEndpoints.map((n) => ({
       address: n.address,
       kind: n.kind,
@@ -110,7 +111,7 @@ export async function statementOfFacts(
     "You write the 'statement of facts' section of a victim's police report about stolen cryptocurrency. " +
     "Write in the first person as the victim, in plain, calm, factual English, chronological, 120-220 words, no headings or bullet points. " +
     "Use only the facts in the JSON you're given. Copy any address or transaction hash exactly; don't mention any that are not in the JSON. " +
-    "Describe how the funds left exactly as howTheFundsLeft says. Give times in UTC. Don't speculate about who the thief is, and don't make legal conclusions.";
+    "Describe how the funds left exactly as howTheFundsLeft says. Give times in UTC. Don't give dollar values. Take dates and times only from theftTime and the transfers; never turn the victim's relative words like 'yesterday' into a date. Don't speculate about who the thief is, and don't make legal conclusions.";
   const user = `<facts>\n${JSON.stringify(facts, null, 1)}\n</facts>`;
   try {
     let text: string;
@@ -131,7 +132,7 @@ export async function statementOfFacts(
         .join("")
         .trim();
     } else {
-      const out = await openRouterText({ system, user });
+      const out = await openRouterText({ system, user, maxTokens: 1200 }); // 120-220 words
       if (!out) return { text: fallback, aiUsed: false };
       text = out;
     }
@@ -142,8 +143,8 @@ export async function statementOfFacts(
       return { text: fallback, aiUsed: false, rejected: unknown };
     return { text, aiUsed: true };
   } catch (err) {
-    if (err instanceof Anthropic.APIError)
-      console.warn("statementOfFacts:", err.status, err.message);
+    // never logs the victim's story or any key — only what went wrong
+    console.warn("statementOfFacts fell back to the template:", err instanceof Anthropic.APIError ? `${err.status} ${err.message}` : err instanceof Error ? err.message : err);
     return { text: fallback, aiUsed: false };
   }
 }
