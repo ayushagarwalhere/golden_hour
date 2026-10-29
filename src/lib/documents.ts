@@ -1,6 +1,6 @@
 import { EMERGENCY, exchangeContact, policeFor } from "./directory";
 import { chainNameFor } from "./evidence";
-import { txUrl } from "./links";
+import { paidFromText, txUrl } from "./links";
 import { lawyerBrief } from "./lawyer";
 import { wasDeceived, type Intake } from "./intake";
 import type { OtherRef } from "./refs";
@@ -25,8 +25,8 @@ To the ${f.entity} Security / Compliance / Law-Enforcement Response team,
 
 ${
     wasDeceived(intake.scamType)
-      ? `I am the victim of a cryptocurrency fraud. On ${utc(trace.theftTime)}, I was deceived into sending funds from my wallet ${trace.victim} (transaction: ${trace.seedTxs.join(", ")}).`
-      : `I am the victim of a cryptocurrency theft. On ${utc(trace.theftTime)}, funds were taken from my wallet ${trace.victim} without my authorisation (theft transaction: ${trace.seedTxs.join(", ")}).`
+      ? `I am the victim of a cryptocurrency fraud. On ${utc(trace.theftTime)}, I was deceived into sending funds ${paidFromText(trace)} (transaction: ${trace.seedTxs.join(", ")}).`
+      : `I am the victim of a cryptocurrency theft. On ${utc(trace.theftTime)}, funds were taken ${paidFromText(trace)} without my authorisation (theft transaction: ${trace.seedTxs.join(", ")}).`
   }
 
 Public ${chainNameFor(trace)} records show that ${amounts} of the stolen funds were deposited to your platform:
@@ -90,7 +90,7 @@ Network: ${chainNameFor(trace)}
 STATEMENT OF FACTS
 ${narrative}
 
-MY WALLET
+${trace.paidFrom === "service" ? "PAID THROUGH (Bitcoin machine or service)" : "MY WALLET"}
   ${trace.victim}
 
 ${wasDeceived(intake.scamType) ? "PAYMENT" : "THEFT"} TRANSACTION(S)
@@ -176,8 +176,8 @@ To the ${h.issuer} Compliance / Law-Enforcement Response team,
 
 ${
     deceived
-      ? `I am the victim of a cryptocurrency fraud. On ${utc(trace.theftTime)}, I was deceived into sending funds from my wallet ${trace.victim}`
-      : `I am the victim of a cryptocurrency theft. On ${utc(trace.theftTime)}, funds were taken from my wallet ${trace.victim} without my authorisation`
+      ? `I am the victim of a cryptocurrency fraud. On ${utc(trace.theftTime)}, I was deceived into sending funds ${paidFromText(trace)}`
+      : `I am the victim of a cryptocurrency theft. On ${utc(trace.theftTime)}, funds were taken ${paidFromText(trace)} without my authorisation`
   } (transaction: ${trace.seedTxs.join(", ")}).
 
 Public ${trace.chainName} records show the funds moving to the following address(es), which still hold ${h.asset} today:
@@ -228,7 +228,7 @@ export function actionPlan(trace: TraceResult, intake: Intake): Step[] {
       title: "Stop further losses",
       detail:
         "Move anything left in this wallet to a brand-new wallet, and revoke token approvals you didn't mean to give. Never share your recovery phrase — no real support agent or 'recovery service' will ask for it.",
-      links: trace.chain === "tron" ? [] : [{ name: "Revoke approvals (revoke.cash)", url: "https://revoke.cash" }],
+      links: trace.chain === "tron" || trace.chain === "bitcoin" ? [] : [{ name: "Revoke approvals (revoke.cash)", url: "https://revoke.cash" }],
       urgent: true,
     },
   ];

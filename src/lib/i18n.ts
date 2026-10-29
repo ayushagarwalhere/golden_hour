@@ -65,7 +65,7 @@ const en = {
   "hash.label": "Paste the code here",
   "hash.bad": "That doesn't look complete. The code starts with 0x and is 66 characters long — try copying it again.",
   "hash.ok": "✓ That looks right.",
-  "hash.other": "This looks like a Tron or Bitcoin code. I'll try to follow it on Tron. If it's Bitcoin, I'll put it in your police report so investigators can trace it.",
+  "hash.other": "This looks like a Tron or Bitcoin code. I'll follow the money on whichever network it's on, and put the code in your police report.",
   "hash.add": "+ I have another code",
 
   "addr.label": "Paste your wallet address",
@@ -367,7 +367,7 @@ const hi: Record<Key, string> = {
   "hash.label": "कोड यहाँ चिपकाएँ",
   "hash.bad": "यह अधूरा लगता है। कोड 0x से शुरू होता है और 66 अक्षरों का होता है — फिर से कॉपी करके देखें।",
   "hash.ok": "✓ यह सही लग रहा है।",
-  "hash.other": "यह Tron या Bitcoin का कोड लगता है। मैं Tron पर इसका पीछा करने की कोशिश करूँगा। अगर यह Bitcoin का है, तो इसे आपकी पुलिस शिकायत में डाल दूँगा ताकि जाँच करने वाले इसका पता लगा सकें।",
+  "hash.other": "यह Tron या Bitcoin का कोड लगता है। यह जिस भी नेटवर्क का हो, मैं वहाँ पैसे का पीछा करूँगा, और कोड आपकी पुलिस शिकायत में डाल दूँगा।",
   "hash.add": "+ मेरे पास एक और कोड है",
 
   "addr.label": "अपना वॉलेट पता चिपकाएँ",
@@ -667,7 +667,7 @@ const es: Record<Key, string> = {
   "hash.label": "Pegue el código aquí",
   "hash.bad": "Parece incompleto. El código empieza por 0x y tiene 66 caracteres — pruebe a copiarlo otra vez.",
   "hash.ok": "✓ Parece correcto.",
-  "hash.other": "Parece un código de Tron o Bitcoin. Intentaré seguirlo en Tron. Si es de Bitcoin, lo pondré en su denuncia para que los investigadores puedan rastrearlo.",
+  "hash.other": "Parece un código de Tron o Bitcoin. Seguiré el dinero en la red que corresponda y pondré el código en su denuncia.",
   "hash.add": "+ Tengo otro código",
 
   "addr.label": "Pegue la dirección de su billetera",

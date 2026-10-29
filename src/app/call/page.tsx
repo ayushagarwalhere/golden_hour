@@ -104,7 +104,7 @@ export default function CallPage() {
   const voiceRef = useRef(voice);
   const releaseRef = useRef<(() => void)[]>([]);
   const releasedRef = useRef(true);
-  const bottom = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef<HTMLOListElement>(null);
   // the microphone and voice callbacks outlive renders: they read the translator through a ref
   const tRef = useRef(t);
   tRef.current = t;
@@ -140,8 +140,10 @@ export default function CallPage() {
     }
   }, [lang]);
   useEffect(() => {
-    // braces matter: newer browsers return a Promise from scrollIntoView, and an effect must not return one
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    // Scroll the transcript box itself, never the page: after the report, the caller is reading their results
+    // further down and mustn't be pulled back up every time the helper speaks.
+    const box = transcriptRef.current;
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
   }, [lines, interim]);
 
   // ---------- the helper's voice ----------
@@ -579,7 +581,7 @@ export default function CallPage() {
                 </p>
               )}
 
-              <ol className="mt-6 flex max-h-[50vh] flex-col gap-3 overflow-y-auto pr-1" aria-label={t("call.title")}>
+              <ol ref={transcriptRef} className="mt-6 flex max-h-[50vh] flex-col gap-3 overflow-y-auto pr-1" aria-label={t("call.title")}>
                 <AnimatePresence initial={false}>
                   {lines.map((l, i) => (
                     <motion.li
@@ -604,7 +606,6 @@ export default function CallPage() {
                     {interim}…
                   </li>
                 )}
-                <div ref={bottom} />
               </ol>
 
               {lineOpen(phase) && (

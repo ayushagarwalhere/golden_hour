@@ -49,7 +49,7 @@ export function lawyerBrief(intake: Intake, trace: TraceResult | null, caseId: s
   if (trace) {
     facts.push(`Loss: ${trace.stolen.map((s) => `${fmt(s.amount)} ${s.asset}${s.usd ? ` (≈ $${Math.round(s.usd).toLocaleString("en-US")})` : ""}`).join(", ")} on ${trace.chainName}, ${utc(trace.theftTime)}.`);
     facts.push(`How it left the client's wallet: ${deceived ? "sent by the client after being deceived (authorised push payment / fraud by deception)" : "taken without the client's authorisation (theft)"}.`);
-    facts.push(`Client wallet: ${trace.victim}. First transaction: ${trace.seedTxs.join(", ")}.`);
+    facts.push(`${trace.paidFrom === "service" ? "Paid through (Bitcoin machine or service)" : "Client wallet"}: ${trace.victim}. First transaction: ${trace.seedTxs.join(", ")}.`);
     for (const f of trace.freezeTargets)
       facts.push(
         `Reached ${f.entity}: ${f.amounts.map((a) => `${fmt(a.amount)} ${a.asset}`).join(", ")} from ${utc(f.firstArrival)}${f.depositAddresses.length ? `, deposit address ${f.depositAddresses.join(", ")}` : ""} — the respondent for a disclosure order.`,

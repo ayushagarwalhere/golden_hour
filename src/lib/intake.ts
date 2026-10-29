@@ -52,8 +52,10 @@ export function regexIntake(story: string, hints: IntakeHints): Intake {
         ? "seed_phrase_compromise"
         : /support|helpdesk|customer care|pretend|impersonat|from my bank|from the bank|police officer|tax office/.test(lower)
           ? "fake_support"
-          : /invest|romance|trading platform|pig/.test(lower)
+          : /invest|romance|trading platform|pig|double|giveaway|send (it )?back|multipl|guaranteed (return|profit)/.test(lower)
             ? "investment_or_romance"
+            : /bitcoin (machine|atm)|crypto (machine|atm)|coin (machine|atm)|(told|asked) me to (send|pay|deposit|put|move)|safe (wallet|account)/.test(lower)
+              ? "fake_support"
             : /site|website|claim|airdrop|mint/.test(lower)
               ? "wallet_drainer_site"
               : "unknown";

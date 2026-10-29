@@ -8,6 +8,7 @@ import {
   wasDeceived,
   type Intake,
 } from "./intake";
+import { paidFromText } from "./links";
 import { openRouterText } from "./openrouter";
 import { fmt, type TraceResult } from "./trace";
 
@@ -28,8 +29,8 @@ export function templateNarrative(trace: TraceResult, intake: Intake): string {
   const deceived = wasDeceived(intake.scamType);
   const lines = [
     deceived
-      ? `On ${utc(trace.theftTime)}, I was deceived into sending ${stolen} from my wallet ${trace.victim} (transaction ${trace.seedTxs.join(", ")}).`
-      : `On ${utc(trace.theftTime)}, ${stolen} was transferred out of my wallet ${trace.victim} without my authorisation (transaction ${trace.seedTxs.join(", ")}).`,
+      ? `On ${utc(trace.theftTime)}, I was deceived into sending ${stolen} ${paidFromText(trace)} (transaction ${trace.seedTxs.join(", ")}).`
+      : `On ${utc(trace.theftTime)}, ${stolen} was taken ${paidFromText(trace)} without my authorisation (transaction ${trace.seedTxs.join(", ")}).`,
     intake.howItHappened,
   ];
   const hops = Math.max(...trace.edges.map((e) => e.hop));

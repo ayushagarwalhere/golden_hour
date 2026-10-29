@@ -171,7 +171,7 @@ const en: HelpContent = {
         },
         { text: "On Golden Hour, choose “I only know my wallet address”, paste the address, and tap the transfer you didn't make." },
         {
-          text: "No wallet at all — you paid at a Bitcoin machine, by bank transfer, or through an app someone told you to install? Choose “I don't have anything like that”. Golden Hour writes your police report from your story, and tells you to call your bank.",
+          text: "Paid at a Bitcoin machine? Look at the receipt: if it shows a long code or an address (starting with bc1, 1 or 3), choose “Yes, I have the transfer code” and type it in — Golden Hour can follow the money from there. No wallet at all — you paid at a Bitcoin machine, by bank transfer, or through an app someone told you to install? Choose “I don't have anything like that”. Golden Hour writes your police report from your story, and tells you to call your bank.",
         },
         { text: "Still stuck? Ask a family member or friend to sit with you and open this page together." },
       ],
@@ -345,7 +345,7 @@ const hi: HelpContent = {
         },
         { text: "Golden Hour पर “मुझे सिर्फ़ अपना वॉलेट पता मालूम है” चुनें, पता चिपकाएँ, और वह ट्रांसफ़र टैप करें जो आपने नहीं किया।" },
         {
-          text: "आपके पास कोई वॉलेट ही नहीं है — आपने Bitcoin मशीन पर, बैंक ट्रांसफ़र से, या किसी के कहने पर इंस्टॉल किए ऐप से पैसे दिए थे? तो “मेरे पास ऐसा कुछ नहीं है” चुनें। Golden Hour आपकी बताई बात से पुलिस शिकायत लिख देगा, और आपको अपने बैंक को फ़ोन करने को कहेगा।",
+          text: "Bitcoin मशीन पर पैसे दिए? रसीद देखिए: अगर उस पर कोई लंबा कोड या पता (bc1, 1 या 3 से शुरू) छपा है, तो “हाँ, मेरे पास ट्रांसफ़र कोड है” चुनकर उसे लिखिए — Golden Hour वहीं से पैसे का पीछा कर सकता है। आपके पास कोई वॉलेट ही नहीं है — आपने Bitcoin मशीन पर, बैंक ट्रांसफ़र से, या किसी के कहने पर इंस्टॉल किए ऐप से पैसे दिए थे? तो “मेरे पास ऐसा कुछ नहीं है” चुनें। Golden Hour आपकी बताई बात से पुलिस शिकायत लिख देगा, और आपको अपने बैंक को फ़ोन करने को कहेगा।",
         },
         { text: "फिर भी समझ नहीं आ रहा? परिवार के किसी सदस्य या दोस्त को पास बैठाएँ और यह पेज साथ में खोलें।" },
       ],
@@ -520,7 +520,7 @@ const es: HelpContent = {
         },
         { text: "En Golden Hour, elija “Solo sé la dirección de mi billetera”, pegue la dirección y toque la transferencia que usted no hizo." },
         {
-          text: "¿No tiene billetera? ¿Pagó en un cajero de Bitcoin, por transferencia bancaria o con una app que alguien le pidió instalar? Elija “No tengo nada de eso”. Golden Hour escribe su denuncia policial a partir de lo que usted cuente, y le indica que llame a su banco.",
+          text: "¿Pagó en un cajero de Bitcoin? Mire el recibo: si muestra un código largo o una dirección (que empieza por bc1, 1 o 3), elija “Sí, tengo el código” y escríbalo; Golden Hour puede seguir el dinero desde ahí. ¿No tiene billetera? ¿Pagó en un cajero de Bitcoin, por transferencia bancaria o con una app que alguien le pidió instalar? Elija “No tengo nada de eso”. Golden Hour escribe su denuncia policial a partir de lo que usted cuente, y le indica que llame a su banco.",
         },
         { text: "¿Sigue sin saber qué hacer? Pida a un familiar o a un amigo que se siente con usted y abran esta página juntos." },
       ],

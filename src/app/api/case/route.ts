@@ -9,6 +9,7 @@ import { statementOfFacts } from "@/lib/narrative";
 import { BlockscoutError } from "@/lib/blockscout";
 import { TraceInputError, traceTheft, type TraceResult } from "@/lib/trace";
 import { findTronTx, TRON_ADDR, TronError, traceTron } from "@/lib/tron";
+import { BitcoinError, BTC_ADDR, findBitcoinTx, traceBitcoin } from "@/lib/bitcoin";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -104,6 +105,23 @@ export async function POST(req: Request) {
               }
             }
           }
+
+          // Not Tron: the same 64-character code may be a Bitcoin transaction. With no code at all, the address
+          // printed on a Bitcoin-ATM receipt (or sent by the scammer) is enough to follow the money.
+          const btcAddrs = [...new Set(refs.filter((r) => r.kind === "address" && r.network === "Bitcoin").map((r) => r.value))].filter((a) => BTC_ADDR.test(a) && a !== rawVictim).slice(0, 3);
+          if (!trace && (tronCodes.length || btcAddrs.length)) {
+            send({ type: "step", message: "Checking the Bitcoin network…" });
+            const btcCodes = (await Promise.all(tronCodes.map((c) => findBitcoinTx(c)))).map((tx, i) => (tx ? tronCodes[i] : null)).filter((c): c is string => !!c);
+            if (btcCodes.length || btcAddrs.length) {
+              try {
+                trace = await traceBitcoin({ txHashes: btcCodes, victim: BTC_ADDR.test(rawVictim) ? rawVictim : null, scammer: btcAddrs }, (e) => send(e));
+              } catch (err) {
+                if (!(err instanceof TraceInputError || err instanceof BitcoinError) || !story) throw err;
+                storyOnly(err instanceof TraceInputError ? err.message : "other-network");
+                return controller.close();
+              }
+            }
+          }
         }
 
         if (!intake.txHashes.length && !trace) {
@@ -130,7 +148,8 @@ export async function POST(req: Request) {
         send({ type: "step", message: "Writing your statement of facts…" });
         const evidence = buildEvidencePack(trace, intake);
         const narrative = await statementOfFacts(trace, intake);
-        const traced = new Set(trace.seedTxs.map((h) => h.toLowerCase()));
+        // codes and addresses the trace followed are in the report already; only list the ones it couldn't
+        const traced = new Set([...trace.seedTxs, ...trace.nodes.map((n) => n.address)].map((h) => h.toLowerCase()));
         const documents = buildDocuments(trace, intake, narrative.text, evidence.pack.caseId, evidence.sha256, refs.filter((r) => !traced.has(r.value.toLowerCase())));
         send({
           type: "result",
@@ -148,7 +167,7 @@ export async function POST(req: Request) {
           message:
             err instanceof TraceInputError
               ? err.message // written for the victim
-              : err instanceof BlockscoutError || err instanceof TronError
+              : err instanceof BlockscoutError || err instanceof TronError || err instanceof BitcoinError
                 ? "The public blockchain data service is busy right now. Please try again in a minute — your details are still filled in."
                 : "Something went wrong on our side. Please try again in a minute — your details are still filled in.",
         });

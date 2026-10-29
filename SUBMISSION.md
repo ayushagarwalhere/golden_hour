@@ -20,7 +20,7 @@ Golden Hour turns a scam victim's own words into the legal paperwork that can fr
 | Step | What the victim does | What Golden Hour does |
 |---|---|---|
 | Tell | Taps a picture button ("I was tricked into sending money"), then types or **speaks** what happened, in English, हिन्दी or Español | Extracts the facts: scam type, scammer handles, phone numbers, codes |
-| Point | Pastes the transfer code, **or** pastes their wallet address and taps the transfer they didn't make, **or** says "I don't have anything like that" | Finds the network (Ethereum, OP, Gnosis, Base, Arbitrum, Polygon, **Tron**) and filters out address-poisoning spam |
+| Point | Pastes the transfer code, **or** pastes their wallet address and taps the transfer they didn't make, **or** says "I don't have anything like that" | Finds the network (Ethereum, OP, Gnosis, Base, Arbitrum, Polygon, **Tron**, **Bitcoin**) and filters out address-poisoning spam. For Bitcoin-ATM scams, the address on the receipt is enough |
 | Trace | Breathes along with a calming guide | Follows the money hop by hop (first-in-first-out, through DEX swaps) until it reaches an exchange deposit address, a mixer or a bridge, or is still sitting in a wallet |
 | Act | Works through one checklist: **Call** the helpline, **Copy my letter**, **Copy my report**, **Save the evidence**, **Remind me in 3 days** | Writes every document from verified facts, routed to the right country's police portal and helplines |
 
@@ -41,7 +41,7 @@ Also included:
    - The evidence file is canonical JSON, so the same facts always give the same SHA-256 fingerprint.
    - The method (FIFO attribution, deposit-address inference) is written into the file itself.
 4. **No hallucinated facts.** Claude writes the statement of facts, then a guard checks it. Every address and hash it mentions (0x codes, Tron addresses and Tron hashes) must exist in the trace, or the deterministic template is used instead.
-5. **No dead ends.** Phone scams, Bitcoin ATMs and bank transfers have no on-chain trail Golden Hour can follow, but they still produce a police report. It lists every code and scammer contact the victim gave, and "call your bank" is the first step.
+5. **No dead ends.** Bitcoin-ATM payments are followed from the address on the receipt. Phone scams and bank transfers have no on-chain trail, but they still produce a police report. It lists every code and scammer contact the victim gave, and "call your bank" is the first step.
 6. **Routed by country.**
    - Police portals: cybercrime.gov.in and 1930 (India), IC3 (US), Action Fraud (UK), the CAFC (Canada), ReportCyber (Australia), SPF (Singapore).
    - Elder-fraud lines: the US DOJ National Elder Fraud Hotline and AARP Fraud Watch.
@@ -54,6 +54,7 @@ Also included:
   - it waits longer when your sentence is still going ("…and then")
   - it checks in gently if you go quiet
   - it keeps you company while it works
+  - after the report it stays on the line: "How do I send the letter?", "Will I get my money back?", "Someone just offered to recover it" are answered from the victim's own case
   - replies are streamed, so it starts speaking before the reply is finished
 
   The same helper answers a real phone number (Twilio) and texts the caller a private link to their report.
@@ -75,7 +76,7 @@ Also included:
 ## Engineering
 
 - Next.js 15, React 19, TypeScript; React Three Fiber for the money-trail graph.
-- Blockscout v2 for six EVM networks. TronGrid + Tronscan public tags for Tron, with per-host throttling so it runs without API keys.
+- Blockscout v2 for six EVM networks. TronGrid + Tronscan public tags for Tron. Bitcoin through Blockstream's Esplora API, with proportional attribution through each spend, exchange-deposit sweep detection, CoinJoin and batch-payout stops, the OFAC sanctions list and WalletExplorer labels (cited as historical attribution). Per-host throttling everywhere, so it runs without API keys.
 - Anthropic Claude (Haiku 5.5 by default, via the Anthropic API or OpenRouter) for story understanding and the statement of facts, both with structured output and a fact guard. **Everything works without an API key**: the deterministic intake and templates take over.
 - 70+ automated tests, covering:
   - tracing against live cases (opt-in)

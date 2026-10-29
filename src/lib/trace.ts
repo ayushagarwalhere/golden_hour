@@ -39,7 +39,7 @@ export type FreezeTarget = {
 };
 
 export type TraceResult = {
-  chain: ChainId | "tron";
+  chain: ChainId | "tron" | "bitcoin";
   chainName: string; // e.g. "Base"
   explorer: string; // e.g. "https://base.blockscout.com" — use for tx/address links
   nativeSymbol: string; // ETH, POL, xDAI…
@@ -54,6 +54,8 @@ export type TraceResult = {
   otherEndpoints: TraceNode[];
   generatedAt: string;
   source: string;
+  /** Bitcoin: "service" when the payment came from a Bitcoin machine or exchange, not the victim's own wallet. */
+  paidFrom?: "victim" | "service";
 };
 
 export type TraceEvent = { type: "step"; message: string };
