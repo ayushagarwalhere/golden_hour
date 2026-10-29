@@ -97,6 +97,31 @@ cp .env.example .env.local   # optional: add ANTHROPIC_API_KEY
 npm run dev                  # http://localhost:3000  (demo: /?demo=1)
 ```
 
+### Run your own copy (helplines, NGOs, legal clinics)
+
+Golden Hour is one Next.js server with no database: cases live in each visitor's browser. Any Node 20+ host works.
+
+```bash
+# Docker
+docker build -t golden-hour .
+docker run -p 3000:3000 -e ANTHROPIC_API_KEY=sk-... golden-hour   # the key is optional
+
+# or plain Node
+npm ci && npm run build
+node .next/standalone/server.js    # copy public/ and .next/static/ next to it, as the Dockerfile does
+```
+
+Environment variables (all optional):
+
+| Variable | What it does |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude reads free-text stories and writes the statement of facts. Without it, deterministic rules and templates are used. |
+| `BLOCKSCOUT_API_KEY` | Enables Base, Arbitrum and Polygon (their public servers block server-side requests). |
+| `TRONGRID_API_KEY` | Faster Tron tracing. |
+| `CASES_PER_10_MIN`, `LOOKUPS_PER_10_MIN` | Per-IP rate limits (defaults 8 and 20). |
+
+A trace can take up to about 2½ minutes, so the host must allow long-running requests (`/api/case` sets `maxDuration = 300`). Security headers block framing by look-alike sites, and a service worker keeps `/`, `/check`, `/help` and `/verify` working on a weak connection.
+
 Trace from the command line:
 
 ```bash

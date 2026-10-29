@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import type { CaseInput } from "@/lib/caseStore";
+import { DICT, hasKey } from "@/lib/i18n";
 
 export const COUNTRIES = [
   ["", "Where do you live?"],
@@ -219,7 +220,7 @@ export default function IntakeForm({
       <AnimatePresence>
         {error && (
           <motion.p role="alert" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5 text-sm" style={{ color: "var(--danger)" }}>
-            {error}
+            {error.startsWith("err.") && hasKey(error) ? DICT.en[error] : error}
           </motion.p>
         )}
       </AnimatePresence>

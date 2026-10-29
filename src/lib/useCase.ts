@@ -43,8 +43,8 @@ export function useCase(opts: { onDone?: (id: string) => void } = {}) {
             contact: inp.contact.trim() || undefined,
           }),
         });
-        if (res.status === 429) throw new Error("Too many cases from this connection in a short time. Please wait a few minutes and try again.");
-        if (!res.ok || !res.body) throw new Error("The service is unavailable right now. Please try again in a moment.");
+        if (res.status === 429) throw new Error("err.rate");
+        if (!res.ok || !res.body) throw new Error("err.busy");
         const reader = res.body.getReader();
         const dec = new TextDecoder();
         let buf = "";
@@ -65,7 +65,7 @@ export function useCase(opts: { onDone?: (id: string) => void } = {}) {
             else if (ev.type === "error") throw new Error(ev.message);
           }
         }
-        if (!gotResult || (!gotTrace && !(gotResult as CaseResult).storyOnly)) throw new Error("The trace didn't complete. Please try again.");
+        if (!gotResult || (!gotTrace && !(gotResult as CaseResult).storyOnly)) throw new Error("err.incomplete");
         const r: CaseResult = gotResult;
         caseStore.save({ id: r.caseId, input: inp, trace: gotTrace, result: r });
         await new Promise((r) => setTimeout(r, 1200)); // let the last breath finish
@@ -73,7 +73,9 @@ export function useCase(opts: { onDone?: (id: string) => void } = {}) {
         onDone.current?.(r.caseId);
       } catch (e) {
         if ((e as Error).name === "AbortError") return;
-        setError(e instanceof Error ? e.message : "Something went wrong.");
+        // a dropped connection shows up as a TypeError from fetch or the stream
+        const offline = typeof navigator !== "undefined" && !navigator.onLine;
+        setError(offline || e instanceof TypeError ? "err.offline" : e instanceof Error ? e.message : "err.busy");
         setStatus("error");
       }
     },

@@ -1,10 +1,10 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import Breathing from "@/components/Breathing";
+import Sky from "@/components/Sky";
 import IntakeForm, { EMPTY_INPUT } from "@/components/IntakeForm";
 import { Footer, Nav, Words } from "@/components/Chrome";
 import Results from "@/components/Results";
@@ -14,8 +14,8 @@ import SmoothScroll, { scrollToId } from "@/components/SmoothScroll";
 import { caseStore, type CaseInput, type SavedCase } from "@/lib/caseStore";
 import { DEMOS } from "@/lib/demos";
 import { useCase } from "@/lib/useCase";
+import { clearDraft } from "@/lib/draft";
 
-const SkyScene = dynamic(() => import("@/components/SkyScene"), { ssr: false });
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -41,7 +41,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (c.status === "done") setSaved(caseStore.list());
+    if (c.status !== "done") return;
+    setSaved(caseStore.list());
+    clearDraft(); // the case is saved now; the next visit starts fresh
   }, [c.status]);
 
   function start(input: CaseInput) {
@@ -57,7 +59,7 @@ export default function Home() {
   return (
     <main id="main" className="grain relative">
       <SmoothScroll />
-      <SkyScene calm={c.status === "tracing" ? 1 : 0} />
+      <Sky calm={c.status === "tracing" ? 1 : 0} />
       <Nav />
 
       {/* hero */}
@@ -85,7 +87,7 @@ export default function Home() {
           <Link className="btn btn-ghost btn-solid" href="/check">
             🔍 {t("chk.cta")}
           </Link>
-          <Link className="mt-2 rounded-full px-4 py-2 text-sm underline underline-offset-4" style={{ background: "rgba(22,12,28,0.55)", color: "var(--cream)" }} href="/judge">
+          <Link className="mt-2 hidden rounded-full px-4 py-2 text-sm underline underline-offset-4 md:inline-block" style={{ background: "rgba(22,12,28,0.55)", color: "var(--cream)" }} href="/judge">
             {t("hero.judges")}
           </Link>
         </motion.div>

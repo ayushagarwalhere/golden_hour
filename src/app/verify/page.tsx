@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import Sky from "@/components/Sky";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Footer, Nav } from "@/components/Chrome";
@@ -9,7 +9,6 @@ import { canonical, sha256Hex } from "@/lib/canonical";
 import { caseStore } from "@/lib/caseStore";
 import type { EvidencePack, StatementPack } from "@/lib/evidence";
 
-const SkyScene = dynamic(() => import("@/components/SkyScene"), { ssr: false });
 
 const short = (a: string) => `${a.slice(0, 8)}…${a.slice(-6)}`;
 
@@ -65,7 +64,7 @@ export default function VerifyPage() {
   return (
     <main id="main" className="grain relative min-h-screen">
       <SmoothScroll />
-      <SkyScene />
+      <Sky />
       <Nav />
       <section className="hero-copy relative z-10 mx-auto max-w-3xl px-4 pb-24 pt-36 md:px-8">
         <div className="chip">For police, exchanges and courts</div>

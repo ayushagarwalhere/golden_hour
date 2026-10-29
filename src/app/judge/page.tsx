@@ -1,10 +1,10 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import Breathing from "@/components/Breathing";
+import Sky from "@/components/Sky";
 import { Footer, Nav, Words } from "@/components/Chrome";
 import IntakeForm, { EMPTY_INPUT } from "@/components/IntakeForm";
 import Results, { type JudgeNotes } from "@/components/Results";
@@ -12,7 +12,6 @@ import SmoothScroll, { scrollToId } from "@/components/SmoothScroll";
 import { DEMOS } from "@/lib/demos";
 import { useCase } from "@/lib/useCase";
 
-const SkyScene = dynamic(() => import("@/components/SkyScene"), { ssr: false });
 
 // The scenario is built on a real, publicly documented theft (SlowMist, Dec 2024).
 // The persona, chat and meeting page are a fictional re-enactment; the blockchain data is live.
@@ -76,7 +75,7 @@ export default function JudgePage() {
   return (
     <main id="main" className="grain relative min-h-screen">
       <SmoothScroll />
-      <SkyScene calm={c.status === "tracing" ? 1 : 0} />
+      <Sky calm={c.status === "tracing" ? 1 : 0} />
       <Nav
         right={
           <span className="chip" style={{ borderColor: "rgba(185,227,198,0.45)", color: "var(--ok)" }}>
