@@ -34,7 +34,8 @@ async function chat(body: Record<string, unknown>, timeoutMs = 90_000): Promise<
         ...(process.env.PUBLIC_SITE_URL ? { "HTTP-Referer": process.env.PUBLIC_SITE_URL } : {}),
         "X-Title": "Golden Hour",
       },
-      body: JSON.stringify({ model: OPENROUTER_MODEL(), ...body }),
+      // Short, factual outputs don't need extended thinking; it would also eat the token budget and the credit.
+      body: JSON.stringify({ model: OPENROUTER_MODEL(), reasoning: { enabled: false }, ...body }),
     });
     if (!res.ok) throw new OpenRouterError(`OpenRouter ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`, res.status);
     const j = (await res.json()) as { choices?: Choice[]; error?: { message?: string } };
@@ -58,7 +59,7 @@ export async function openRouterJson<T extends z.ZodType>(opts: { system: string
     ],
     response_format: { type: "json_schema", json_schema: { name: opts.name, strict: true, schema: z.toJSONSchema(opts.schema) } },
   });
-  if (choice.message?.refusal || !choice.message?.content) return null;
+  if (choice.message?.refusal || !choice.message?.content || choice.finish_reason === "length") return null;
   try {
     const parsed = opts.schema.safeParse(JSON.parse(choice.message.content));
     return parsed.success ? parsed.data : null;
@@ -76,6 +77,7 @@ export async function openRouterText(opts: { system: string; user: string; maxTo
       { role: "user", content: opts.user },
     ],
   });
-  if (choice.message?.refusal || choice.finish_reason === "content_filter") return null;
+  // a reply cut off mid-sentence must never reach a police report
+  if (choice.message?.refusal || choice.finish_reason === "content_filter" || choice.finish_reason === "length") return null;
   return choice.message?.content?.trim() || null;
 }

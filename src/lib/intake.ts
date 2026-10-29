@@ -108,7 +108,7 @@ export async function extractIntake(
       });
       p = res.stop_reason === "refusal" ? null : res.parsed_output;
     } else {
-      p = await openRouterJson({ system: INTAKE_SYSTEM, user, schema: IntakeSchema, name: "intake" });
+      p = await openRouterJson({ system: INTAKE_SYSTEM, user, schema: IntakeSchema, name: "intake", maxTokens: 1500 });
     }
     if (!p) return { intake: base, aiUsed: false, note: "Model declined; used basic extraction" };
     // Hashes and addresses must literally appear in what the victim gave us.
@@ -127,6 +127,7 @@ export async function extractIntake(
       aiUsed: true,
     };
   } catch (err) {
+    console.warn("extractIntake fell back to basic extraction:", err instanceof Error ? err.message : err);
     const note = err instanceof Anthropic.APIError ? `AI unavailable (${err.status ?? "network"}); used basic extraction` : "AI unavailable; used basic extraction";
     return { intake: base, aiUsed: false, note };
   }
