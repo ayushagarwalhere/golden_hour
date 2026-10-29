@@ -63,7 +63,8 @@ const MAX_NODES = 45;
 const WINDOW_MS = 45 * 24 * 3600 * 1000; // follow funds for up to 45 days after the theft
 const DUST = 0.01; // ignore remainders under 1% of the incoming amount
 const MAX_FANOUT = 5; // onward transfers followed per wallet
-const TIME_BUDGET_MS = 150_000; // stop opening new hops after this; leftovers are marked for manual follow-up
+// TRACE_BUDGET_SECONDS lowers this on hosts with short request limits (e.g. 90 on AWS App Runner, which cuts requests at 120 s)
+const TIME_BUDGET_MS = (Number(process.env.TRACE_BUDGET_SECONDS) || 150) * 1000; // stop opening new hops after this; leftovers are marked for manual follow-up
 
 const lc = (s: string) => s.toLowerCase();
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;

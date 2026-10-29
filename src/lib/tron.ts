@@ -29,7 +29,8 @@ const MAX_NODES = 40;
 const WINDOW_MS = 45 * 24 * 3600 * 1000;
 const DUST = 0.01;
 const MAX_FANOUT = 5;
-const TIME_BUDGET_MS = 150_000;
+// TRACE_BUDGET_SECONDS lowers this on hosts with short request limits (e.g. 90 on AWS App Runner, which cuts requests at 120 s)
+const TIME_BUDGET_MS = (Number(process.env.TRACE_BUDGET_SECONDS) || 150) * 1000;
 
 export const TRON_ADDR = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
 export const TRON_TX = /^[a-fA-F0-9]{64}$/;

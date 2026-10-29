@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { openRouterConfigured, openRouterJson } from "./openrouter";
 
 export const MODEL = "claude-opus-5-5";
 
@@ -77,7 +78,14 @@ export function regexIntake(story: string, hints: IntakeHints): Intake {
 
 let client: Anthropic | null = null;
 export const ai = () => (client ??= new Anthropic());
-export const aiConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+/** Claude directly (ANTHROPIC_API_KEY) is preferred; OpenRouter (OPENROUTER_API_KEY) is the alternative route to the same model. */
+export const anthropicConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+export const aiConfigured = () => anthropicConfigured() || openRouterConfigured();
+
+const INTAKE_SYSTEM =
+  "You help victims of cryptocurrency theft write up what happened, for a police report and an exchange freeze request. " +
+  "Extract facts only from the victim's message. Never invent addresses, hashes, names, amounts or dates; use null or an empty list when something isn't stated. " +
+  "The victim may be distressed and write informally or in another language — summarise in clear, neutral English in the first person.";
 
 export async function extractIntake(
   story: string,
@@ -85,26 +93,24 @@ export async function extractIntake(
 ): Promise<{ intake: Intake; aiUsed: boolean; note?: string }> {
   const base = regexIntake(story, hints);
   if (!aiConfigured() || !story.trim()) return { intake: base, aiUsed: false };
+  const user = `Victim's message:\n<story>\n${story}\n</story>\n\nExtra fields from the form: ${JSON.stringify(hints)}`;
   try {
-    const res = await ai().beta.messages.parse({
-      model: MODEL,
-      max_tokens: 4000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "low", format: betaZodOutputFormat(IntakeSchema) },
-      system:
-        "You help victims of cryptocurrency theft write up what happened, for a police report and an exchange freeze request. " +
-        "Extract facts only from the victim's message. Never invent addresses, hashes, names, amounts or dates; use null or an empty list when something isn't stated. " +
-        "The victim may be distressed and write informally or in another language — summarise in clear, neutral English in the first person.",
-      messages: [
-        {
-          role: "user",
-          content: `Victim's message:\n<story>\n${story}\n</story>\n\nExtra fields from the form: ${JSON.stringify(hints)}`,
-        },
-      ],
-    });
-    if (res.stop_reason === "refusal" || !res.parsed_output) return { intake: base, aiUsed: false, note: "Model declined; used basic extraction" };
-    const p = res.parsed_output;
+    let p: z.infer<typeof IntakeSchema> | null;
+    if (anthropicConfigured()) {
+      const res = await ai().beta.messages.parse({
+        model: MODEL,
+        max_tokens: 4000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: { effort: "low", format: betaZodOutputFormat(IntakeSchema) },
+        system: INTAKE_SYSTEM,
+        messages: [{ role: "user", content: user }],
+      });
+      p = res.stop_reason === "refusal" ? null : res.parsed_output;
+    } else {
+      p = await openRouterJson({ system: INTAKE_SYSTEM, user, schema: IntakeSchema, name: "intake" });
+    }
+    if (!p) return { intake: base, aiUsed: false, note: "Model declined; used basic extraction" };
     // Hashes and addresses must literally appear in what the victim gave us.
     const given = (story + JSON.stringify(hints)).toLowerCase();
     const txHashes = [...new Set([...base.txHashes, ...p.txHashes.map((h) => h.toLowerCase()).filter((h) => given.includes(h))])];
