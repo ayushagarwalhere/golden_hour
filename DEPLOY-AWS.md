@@ -82,6 +82,26 @@ Use this if you need longer traces or more control.
 
 ---
 
+## Small EC2 server (1 GB is enough): build here, run there
+
+This is how the live demo runs: Amazon Linux 2023, t3.micro, 8 GB disk. Nothing is built on the server.
+
+1. Put your secrets in `deploy/ec2/server.env` (git-ignored):
+   ```
+   OPENROUTER_API_KEY=sk-or-...
+   # optional, for the phone line:
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   ```
+2. From the project folder:
+   ```bash
+   bash deploy/ec2/push-release.sh <server-ip> path/to/key.pem
+   ```
+   The first run installs Node 22, Caddy, swap and three systemd services. Later runs replace the app and restart it. The site is served at `https://<ip-with-dashes>.sslip.io` (set `DOMAIN=your-domain.com` before the command to use your own).
+3. Security group: SSH from your IP, HTTP and HTTPS from anywhere.
+
+The phone relay stays closed (HTTP 503) until `TWILIO_AUTH_TOKEN` is set, so nobody but Twilio can use it.
+
 ## Single EC2 server (Docker Compose + automatic HTTPS)
 
 1. Launch Ubuntu 24.04 (t3.small or larger, 20 GB gp3, no extra file systems). Security group: SSH from your IP, HTTP and HTTPS from anywhere. Attach an Elastic IP.

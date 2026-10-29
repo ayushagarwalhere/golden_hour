@@ -20,6 +20,9 @@ const AUTH = process.env.TWILIO_AUTH_TOKEN || "";
 const SID = process.env.TWILIO_ACCOUNT_SID || "";
 const INTERNAL = process.env.INTERNAL_TOKEN || "";
 const log = (...a) => console.log(new Date().toISOString(), "[voice]", ...a);
+// Without Twilio's auth token we can't tell Twilio from anyone else, and the relay is exempt from per-IP
+// limits, so it stays closed unless explicitly opened for local testing.
+const OPEN = Boolean(AUTH) || process.env.VOICE_ALLOW_UNSIGNED === "1";
 
 async function app(path, body) {
   const res = await fetch(APP + path, {
@@ -70,9 +73,13 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   if (req.method === "GET" && url.pathname === "/voice/health") {
     res.writeHead(200, { "content-type": "application/json" });
-    return res.end(JSON.stringify({ ok: true, signed: Boolean(AUTH), sms: Boolean(SID && AUTH) }));
+    return res.end(JSON.stringify({ ok: true, open: OPEN, signed: Boolean(AUTH), sms: Boolean(SID && AUTH) }));
   }
   if (req.method === "POST" && url.pathname === "/voice/incoming") {
+    if (!OPEN) {
+      res.writeHead(503, { "content-type": "text/plain" });
+      return res.end("Phone line not configured: set TWILIO_AUTH_TOKEN");
+    }
     const params = Object.fromEntries(new URLSearchParams(await readBody(req)));
     if (AUTH && !validTwilioSignature(AUTH, req.headers["x-twilio-signature"], `${PUBLIC}${url.pathname}`, params)) {
       log("rejected unsigned webhook");
@@ -98,6 +105,7 @@ const wss = new WebSocketServer({ noServer: true });
 server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url, "http://x");
   if (url.pathname !== "/voice/relay") return socket.destroy();
+  if (!OPEN) return socket.destroy();
   // Twilio signs the WebSocket handshake too (no body parameters)
   if (AUTH && !validTwilioSignature(AUTH, req.headers["x-twilio-signature"], `${PUBLIC.replace(/^http/, "ws")}${req.url}`)) {
     log("rejected unsigned websocket");
