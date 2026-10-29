@@ -42,3 +42,6 @@ next-env.d.ts
 
 # example env is safe to commit
 !.env.example
+
+# server secrets
+deploy/ec2/.env.production
