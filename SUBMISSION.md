@@ -61,7 +61,7 @@ Also included:
 
 - Next.js 15, React 19, TypeScript; React Three Fiber for the money-trail graph.
 - Blockscout v2 for six EVM networks. TronGrid + Tronscan public tags for Tron, with per-host throttling so it runs without API keys.
-- Anthropic Claude (`claude-opus-5-5`) for story understanding and the statement of facts, both with structured output and a fact guard. **Everything works without an API key**: the deterministic intake and templates take over.
+- Anthropic Claude (Haiku 5.5 by default, via the Anthropic API or OpenRouter) for story understanding and the statement of facts, both with structured output and a fact guard. **Everything works without an API key**: the deterministic intake and templates take over.
 - 50+ automated tests, covering:
   - tracing against live cases (opt-in)
   - Tron address decoding and labels

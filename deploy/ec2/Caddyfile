@@ -2,8 +2,16 @@
 # DOMAIN is your domain, or <public-ip-with-dashes>.sslip.io if you don't have one yet.
 {$DOMAIN} {
 	encode zstd gzip
-	reverse_proxy app:3000 {
-		# send the live tracing progress to the browser as it happens
-		flush_interval -1
+
+	# Twilio phone line: webhook + ConversationRelay WebSocket
+	handle /voice/* {
+		reverse_proxy voice:3001
+	}
+
+	handle {
+		reverse_proxy app:3000 {
+			# send the live tracing progress to the browser as it happens
+			flush_interval -1
+		}
 	}
 }

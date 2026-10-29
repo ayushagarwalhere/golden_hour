@@ -2,6 +2,7 @@ import { actionPlan, buildDocuments, storyPlan, storyPoliceReport } from "@/lib/
 import { buildEvidencePack, buildStatementPack } from "@/lib/evidence";
 import { lawyerBrief } from "@/lib/lawyer";
 import { clientIp, makeLimiter } from "@/lib/rateLimit";
+import { internalAllowed } from "@/lib/serverCases";
 import { otherChainRefs } from "@/lib/refs";
 import { extractIntake } from "@/lib/intake";
 import { statementOfFacts } from "@/lib/narrative";
@@ -22,7 +23,7 @@ const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice
 const limited = makeLimiter(Number(process.env.CASES_PER_10_MIN ?? 8));
 
 export async function POST(req: Request) {
-  if (limited(clientIp(req))) return Response.json({ error: "rate_limited" }, { status: 429 });
+  if (!internalAllowed(req) && limited(clientIp(req))) return Response.json({ error: "rate_limited" }, { status: 429 });
 
   const raw = await req.text();
   if (raw.length > 20_000) return Response.json({ error: "too_large" }, { status: 413 });

@@ -4,6 +4,7 @@ import {
   aiConfigured,
   anthropicConfigured,
   MODEL,
+  fallbackParams,
   wasDeceived,
   type Intake,
 } from "./intake";
@@ -119,8 +120,7 @@ export async function statementOfFacts(
       const res = await ai().beta.messages.create({
         model: MODEL,
         max_tokens: 3000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
+        ...fallbackParams(),
         output_config: { effort: "medium" },
         system,
         messages: [{ role: "user", content: user }],
