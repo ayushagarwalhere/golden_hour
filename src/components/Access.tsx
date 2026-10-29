@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { HELPLINES } from "@/lib/directory";
@@ -70,6 +71,7 @@ export function LangSwitch() {
 
 /** Floating help & comfort controls on every page. */
 export function AccessBar() {
+  const onCall = usePathname()?.startsWith("/call") ?? false;
   const { textSize, setTextSize, calm, setCalm, contrast, setContrast } = usePrefs();
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -151,6 +153,17 @@ export function AccessBar() {
           </motion.div>
         )}
       </AnimatePresence>
+      {!open && !onCall && (
+        <Link
+          href="/call"
+          className="btn h-14 w-14 justify-center p-0 shadow-lg sm:h-auto sm:w-auto sm:px-5 sm:py-3.5"
+          style={{ background: "#2f8f5b", color: "white", border: "1px solid rgba(255,255,255,0.25)" }}
+          aria-label={t("call.title")}
+        >
+          <span aria-hidden className="text-xl">📞</span>
+          <span className="hidden sm:inline">&nbsp;{t("call.fab")}</span>
+        </Link>
+      )}
       <button className="btn btn-sun shadow-lg" style={{ padding: "14px 20px" }} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={t("a.button")}>
         {open ? t("a.close") : t("a.button")}
       </button>

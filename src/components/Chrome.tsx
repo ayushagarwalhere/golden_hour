@@ -37,9 +37,14 @@ export function Nav({ right }: { right?: React.ReactNode }) {
         <span className="serif text-xl">Golden Hour</span>
       </Link>
       {right ?? (
-        <Link className="btn btn-ghost btn-sm" href="/#begin">
-          {t("nav.help")}
-        </Link>
+        <span className="flex items-center gap-2">
+          <Link className="btn btn-ghost btn-sm" href="/call" aria-label={t("call.title")}>
+            📞<span className="hidden sm:inline">&nbsp;{t("call.fab")}</span>
+          </Link>
+          <Link className="btn btn-ghost btn-sm" href="/#begin">
+            {t("nav.help")}
+          </Link>
+        </span>
       )}
     </header>
   );
