@@ -25,8 +25,8 @@ const MIX_SAME = 5; // this many outputs of exactly the same amount: a CoinJoin 
 const BUDGET_MS = Number(process.env.TRACE_BUDGET_SECONDS ?? 150) * 1000 * 0.6;
 const WINDOW_S = 60 * 24 * 3600; // with only an address, look at payments into it in the last 60 days
 
-type Vin = { txid: string; vout: number; is_coinbase?: boolean; prevout: { scriptpubkey_address?: string; value: number } | null };
-type Vout = { scriptpubkey_address?: string; value: number };
+type Vin = { txid: string; vout: number; is_coinbase?: boolean; prevout: { scriptpubkey_address?: string; scriptpubkey_type?: string; value: number } | null };
+type Vout = { scriptpubkey_address?: string; scriptpubkey_type?: string; value: number };
 export type BtcTx = { txid: string; vin: Vin[]; vout: Vout[]; status: { confirmed: boolean; block_time?: number } };
 type Outspend = { spent: boolean; txid?: string; vin?: number; status?: { block_time?: number } };
 type AddrInfo = { chain_stats: { tx_count: number }; mempool_stats: { tx_count: number } };
@@ -153,7 +153,9 @@ export async function traceBitcoin(input: { txHashes: string[]; victim?: string 
     else {
       outs = outs.filter((o) => !ins.has(o.scriptpubkey_address!) && o.scriptpubkey_address !== victim);
       // an exchange or ATM operator often batches many customers' withdrawals: without the address we can't tell which was theirs
-      if (outs.length > 3) throw new TraceInputError("This Bitcoin payment went to many addresses at once. Tell me the address the money was sent to (it's on the receipt or in the message from the scammer) and I can follow it.");
+      if (outs.length > 3) throw new TraceInputError(ASK_ADDRESS);
+      // Two or three outputs: one is the payment, the rest is usually change going back to the sender.
+      if (outs.length > 1) outs = [paymentOutput(outs, tx)];
     }
     for (const o of outs) {
       stolenSats.n += o.value;
@@ -295,6 +297,22 @@ export async function traceBitcoin(input: { txHashes: string[]; victim?: string 
     paidFrom,
     source: "Blockstream Esplora API (mempool.space as fallback); proportional attribution through each spending transaction; exchange labels from a hand-checked list, the OFAC sanctions list and WalletExplorer (historical)",
   };
+}
+
+const ASK_ADDRESS = "I can't tell which part of that Bitcoin payment went to the scammer. Tell me the address the money was sent to (it's on the receipt or in the message from the scammer) and I can follow it.";
+
+/**
+ * Which output is the payment, and which is change? Counting change as stolen would overstate the loss in a
+ * police report, so only clear signs count: change goes back to the sender's own kind of address, and payments
+ * are often round amounts. If neither settles it, ask the victim rather than guess.
+ */
+function paymentOutput<T extends Vout>(outs: T[], tx: BtcTx): T {
+  const inTypes = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_type).filter(Boolean));
+  const otherType = outs.filter((o) => o.scriptpubkey_type && inTypes.size === 1 && !inTypes.has(o.scriptpubkey_type));
+  if (otherType.length === 1) return otherType[0];
+  const round = outs.filter((o) => o.value % 100_000 === 0); // a whole number of thousandths of a bitcoin
+  if (round.length === 1) return round[0];
+  throw new TraceInputError(ASK_ADDRESS);
 }
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;

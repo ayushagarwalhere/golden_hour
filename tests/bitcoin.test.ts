@@ -107,17 +107,39 @@ test("bitcoin: a batched payment needs the destination address; mixing and busy 
   await assert.rejects(() => traceBitcoin({ txHashes: [h("6")] }, () => {}), (e: unknown) => e instanceof TraceInputError && /address the money was sent to/.test(e.message));
 
   const v = A("victim2"), t = A("thief2"), t3 = A("thief3"), busy = A("bigservice");
+  // mixing
   fakeChain({
-    txs: [
-      tx(h("7"), [[v, 1 * SAT]], [[t, 0.6 * SAT], [t3, 0.3999 * SAT]]),
-      tx(h("8"), [[t, 0.6 * SAT], [A("x1"), 0.1 * SAT]], Array.from({ length: 7 }, (_, i): [string, number] => [A("mix" + i), 0.1 * SAT])),
-      tx(h("9"), [[t3, 0.3999 * SAT]], [[busy, 0.3998 * SAT]]),
-    ],
-    spends: { [h("7")]: [{ txid: h("8") }, { txid: h("9") }], [h("9")]: [null] },
-    busy: [busy, t3],
+    txs: [tx(h("7"), [[v, 1 * SAT]], [[t, 0.9999 * SAT]]), tx(h("8"), [[t, 0.9999 * SAT], [A("x1"), 0.0001 * SAT]], Array.from({ length: 10 }, (_, i): [string, number] => [A("mix" + i), 0.1 * SAT]))],
+    spends: { [h("7")]: [{ txid: h("8") }] },
   });
   const r = await traceBitcoin({ txHashes: [h("7")], victim: v }, () => {});
   assert.match(r.nodes.find((n) => n.address === t)!.stoppedBecause ?? "", /CoinJoin/);
-  assert.match(r.nodes.find((n) => n.address === busy)!.labels[0], /likely an exchange or payment service/);
-  assert.equal(r.nodes.find((n) => n.address === t3)!.stoppedBecause, undefined, "the address the victim paid is followed, however busy it is");
+  // a very busy service one hop on; the address the victim paid is followed however busy it is
+  fakeChain({
+    txs: [tx(h("9"), [[v, 1 * SAT]], [[t3, 0.9999 * SAT]]), tx(h("0"), [[t3, 0.9999 * SAT]], [[busy, 0.9998 * SAT]])],
+    spends: { [h("9")]: [{ txid: h("0") }], [h("0")]: [null] },
+    busy: [busy, t3],
+  });
+  const r2 = await traceBitcoin({ txHashes: [h("9")], victim: v }, () => {});
+  assert.match(r2.nodes.find((n) => n.address === busy)!.labels[0], /likely an exchange or payment service/);
+  assert.equal(r2.nodes.find((n) => n.address === t3)!.stoppedBecause, undefined, "the address the victim paid is followed, however busy it is");
+});
+
+test("bitcoin: change going back to the sender is never counted as stolen", async () => {
+  const v = A("victim4"), change = A("newchange"), legacy = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT";
+  const typed = (t: Tx, types: string[], inType: string): Tx => ({
+    ...t,
+    vin: t.vin.map((i) => ({ ...i, prevout: { ...i.prevout, scriptpubkey_type: inType } })),
+    vout: t.vout.map((o, k) => ({ ...o, scriptpubkey_type: types[k] })),
+  });
+  // the payment goes to a different kind of address than the sender's: that's the payment, the other is change
+  fakeChain({ txs: [typed(tx(h("a"), [[v, 1 * SAT]], [[change, 0.6123 * SAT], [legacy, 0.3876 * SAT]]), ["v0_p2wpkh", "p2pkh"], "v0_p2wpkh")], spends: { [h("a")]: [null, null] } });
+  const r = await traceBitcoin({ txHashes: [h("a")] }, () => {});
+  assert.deepEqual(r.stolen.map((s) => s.amount), [0.3876]);
+  // same kinds of address and no round amount: ask, don't guess
+  fakeChain({ txs: [typed(tx(h("b"), [[v, 1 * SAT]], [[change, 0.6123 * SAT], [A("pay"), 0.3876 * SAT]]), ["v0_p2wpkh", "v0_p2wpkh"], "v0_p2wpkh")], spends: {} });
+  await assert.rejects(() => traceBitcoin({ txHashes: [h("b")] }, () => {}), /address the money was sent to/);
+  // a round amount is the payment
+  fakeChain({ txs: [typed(tx(h("c"), [[v, 1 * SAT]], [[change, 0.6987 * SAT], [A("pay2"), 0.3 * SAT]]), ["v0_p2wpkh", "v0_p2wpkh"], "v0_p2wpkh")], spends: { [h("c")]: [null, null] } });
+  assert.deepEqual((await traceBitcoin({ txHashes: [h("c")] }, () => {})).stolen.map((s) => s.amount), [0.3]);
 });
