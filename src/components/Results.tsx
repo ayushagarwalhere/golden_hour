@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { caseStore, type CaseInput, type CaseResult } from "@/lib/caseStore";
 import NextSteps, { download } from "./NextSteps";
 import type { TraceNode, TraceResult } from "@/lib/trace";
-import { KIND_LABEL } from "./TraceGraph";
+import { KIND_LABEL } from "@/lib/kinds";
 import { addrUrl, txUrl } from "@/lib/links";
 
 export type { CaseResult };

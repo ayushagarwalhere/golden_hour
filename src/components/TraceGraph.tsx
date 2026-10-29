@@ -19,17 +19,8 @@ const COLORS: Record<string, string> = {
   contract: "#a99",
 };
 
-export const KIND_LABEL: Record<string, string> = {
-  victim: "Your wallet",
-  wallet: "Hop wallet",
-  scam: "Flagged scam wallet",
-  exchange_deposit: "Exchange deposit address",
-  exchange_hot: "Exchange wallet",
-  mixer: "Mixer",
-  bridge: "Bridge",
-  dex: "DEX",
-  contract: "Contract",
-};
+import { KIND_LABEL } from "@/lib/kinds";
+export { KIND_LABEL };
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 

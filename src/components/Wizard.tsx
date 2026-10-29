@@ -3,7 +3,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { CaseInput } from "@/lib/caseStore";
-import { LANGS, speechLang, type Key } from "@/lib/i18n";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
+import { hasKey, LANGS, speechLang, type Key } from "@/lib/i18n";
 import type { RecentTransfer } from "@/lib/recent";
 import { isOtherChainCode } from "@/lib/refs";
 import { speak, stopSpeaking, usePrefs, useT } from "@/lib/prefs";
@@ -62,6 +63,47 @@ export default function Wizard({ busy, error, onSubmit, onAdvanced }: { busy: bo
   const [contact, setContact] = useState("");
   // after the first screen, each new question takes focus (and scrolls into view) when it appears
   const [focusNew, setFocusNew] = useState(false);
+  const [restored, setRestored] = useState(false);
+  const loadedDraft = useRef(false);
+
+  // Keep answers on this device so closing the tab, a locked phone or a lost connection never loses them.
+  useEffect(() => {
+    const d = loadDraft();
+    if (d) {
+      setStep(d.step);
+      setScenario(d.scenario);
+      setStory(d.story);
+      setMode(d.mode);
+      setHashes(d.hashes.length ? d.hashes : [""]);
+      setAddress(d.address);
+      setPicked(d.picked);
+      setCountry(d.country);
+      setName(d.name);
+      setContact(d.contact);
+      setRestored(d.step !== "what" || Boolean(d.story));
+    }
+    loadedDraft.current = true;
+  }, []);
+  useEffect(() => {
+    if (!loadedDraft.current) return;
+    saveDraft({ step, scenario, story, mode, hashes, address, picked, country, name, contact });
+  }, [step, scenario, story, mode, hashes, address, picked, country, name, contact]);
+
+  function startOver() {
+    clearDraft();
+    stopSpeaking();
+    setRestored(false);
+    setScenario(null);
+    setStory("");
+    setMode(null);
+    setHashes([""]);
+    setAddress("");
+    setPicked([]);
+    setCountry("");
+    setName("");
+    setContact("");
+    go("what");
+  }
 
   const idx = STEPS.indexOf(step);
   const go = (s: StepId) => {
@@ -107,6 +149,15 @@ export default function Wizard({ busy, error, onSubmit, onAdvanced }: { busy: bo
           </button>
         ))}
       </div>
+
+      {restored && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "rgba(255,210,154,0.08)" }} role="status">
+          <span className="text-base">{t("draft.back")}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={startOver}>
+            {t("draft.reset")}
+          </button>
+        </div>
+      )}
 
       {/* progress */}
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -250,7 +301,7 @@ export default function Wizard({ busy, error, onSubmit, onAdvanced }: { busy: bo
               <AnimatePresence>
                 {error && (
                   <motion.p role="alert" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5 text-lg" style={{ color: "var(--danger)" }}>
-                    {error}
+                    {error.startsWith("err.") && hasKey(error) ? t(error) : error}
                   </motion.p>
                 )}
               </AnimatePresence>

@@ -375,3 +375,23 @@ select.field option {
     break-before: page;
   }
 }
+
+/* Still sunset: paints instantly on every device; the animated sky fades in on top where it can run. */
+.still-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 34% 9% at 50% 82.5%, rgba(255, 244, 222, 0.95), rgba(255, 214, 160, 0.75) 38%, rgba(255, 190, 120, 0) 72%),
+    radial-gradient(ellipse 85% 30% at 50% 84%, rgba(255, 170, 110, 0.55), rgba(255, 150, 100, 0) 70%),
+    linear-gradient(to top, #2a1430 0%, #4a2034 12%, #ffcf92 17.2%, #f6905e 22%, #b9474a 34%, #73283f 46%, #2c1532 66%, #170c1e 100%);
+}
+html.contrast .still-sky {
+  filter: brightness(0.75);
+}
+
+/* Room for the floating "Aa · Help" button so it never covers the last thing on a page. */
+body {
+  padding-bottom: 5.5rem;
+}
