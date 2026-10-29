@@ -323,3 +323,36 @@ function labelFor(address: string) {
   if (!p) labelCache.set(address, (p = labelBitcoin(address).catch(() => null)));
   return p;
 }
+
+/** "I only know my wallet address": the newest bitcoin that left this wallet, for the victim to tap. */
+export async function btcRecentOutgoing(address: string) {
+  const [txs, price] = await Promise.all([btc.addressTxs(address), btc.price()]);
+  return txs
+    .filter((t) => t.vin.some((v) => v.prevout?.scriptpubkey_address === address))
+    .map((t) => {
+      const outs = t.vout.filter((o) => o.scriptpubkey_address && o.scriptpubkey_address !== address);
+      if (!outs.length) return null;
+      let pay = outs[0];
+      if (outs.length > 1) {
+        try {
+          pay = paymentOutput(outs, t);
+        } catch {
+          pay = outs.reduce((a, b) => (b.value > a.value ? b : a));
+        }
+      }
+      const amount = btcAmount(pay.value);
+      return {
+        chain: "bitcoin" as const,
+        chainName: "Bitcoin",
+        txHash: t.txid,
+        timestamp: iso(t.status.block_time),
+        asset: "BTC",
+        amount,
+        usd: price ? amount * price : null,
+        to: pay.scriptpubkey_address!,
+        toName: null,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .slice(0, 12);
+}

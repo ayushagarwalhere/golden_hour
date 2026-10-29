@@ -33,7 +33,7 @@ type StepId = (typeof STEPS)[number];
 
 const TX = /^0x[a-fA-F0-9]{64}$/;
 // 0x… (Ethereum-type networks) or T… (Tron)
-const ADDR = /^(0x[a-fA-F0-9]{40}|T[1-9A-HJ-NP-Za-km-z]{33})$/;
+const ADDR = /^(0x[a-fA-F0-9]{40}|T[1-9A-HJ-NP-Za-km-z]{33}|bc1[a-z0-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/; // Ethereum-type, Tron, Bitcoin
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const amt = (n: number) => (n >= 1000 ? n.toLocaleString("en-US", { maximumFractionDigits: 0 }) : n >= 1 ? n.toLocaleString("en-US", { maximumFractionDigits: 4 }) : n.toPrecision(3));
 

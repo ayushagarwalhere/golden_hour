@@ -70,7 +70,7 @@ const en = {
 
   "addr.label": "Paste your wallet address",
   "addr.help": "In your wallet app, tap “Receive”. The code under the square picture is your address. It's safe to share — like a bank account number.",
-  "addr.bad": "A wallet address starts with 0x (42 characters) or, on Tron, with T (34 characters).",
+  "addr.bad": "A wallet address starts with 0x (42 characters), on Tron with T (34 characters), or on Bitcoin with bc1, 1 or 3.",
   "addr.look": "Show my recent transfers",
   "addr.looking": "Looking at public records…",
   "addr.pick": "Tap the transfer you did NOT make. You can pick more than one.",
@@ -372,7 +372,7 @@ const hi: Record<Key, string> = {
 
   "addr.label": "अपना वॉलेट पता चिपकाएँ",
   "addr.help": "अपने वॉलेट ऐप में “Receive” दबाएँ। चौकोर तस्वीर के नीचे जो कोड है, वही आपका पता है। इसे बताना सुरक्षित है — बैंक खाता नंबर की तरह।",
-  "addr.bad": "वॉलेट पता 0x से शुरू होता है (42 अक्षर), या Tron पर T से (34 अक्षर)।",
+  "addr.bad": "वॉलेट पता 0x से शुरू होता है (42 अक्षर), Tron पर T से (34 अक्षर), या Bitcoin पर bc1, 1 या 3 से।",
   "addr.look": "मेरे हाल के ट्रांसफ़र दिखाएँ",
   "addr.looking": "सार्वजनिक रिकॉर्ड देख रहा हूँ…",
   "addr.pick": "जो ट्रांसफ़र आपने नहीं किया, उस पर टैप करें। एक से ज़्यादा भी चुन सकते हैं।",
@@ -672,7 +672,7 @@ const es: Record<Key, string> = {
 
   "addr.label": "Pegue la dirección de su billetera",
   "addr.help": "En su app de billetera, toque “Recibir”. El código bajo la imagen cuadrada es su dirección. Es seguro compartirla — como un número de cuenta.",
-  "addr.bad": "Una dirección de billetera empieza por 0x (42 caracteres) o, en Tron, por T (34 caracteres).",
+  "addr.bad": "Una dirección de billetera empieza por 0x (42 caracteres), en Tron por T (34 caracteres) o en Bitcoin por bc1, 1 o 3.",
   "addr.look": "Mostrar mis transferencias recientes",
   "addr.looking": "Mirando los registros públicos…",
   "addr.pick": "Toque la transferencia que usted NO hizo. Puede elegir más de una.",
