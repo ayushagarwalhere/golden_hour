@@ -111,11 +111,16 @@ npm ci && npm run build
 node .next/standalone/server.js    # copy public/ and .next/static/ next to it, as the Dockerfile does
 ```
 
+Deploying on AWS: see [DEPLOY-AWS.md](DEPLOY-AWS.md).
+
 Environment variables (all optional):
 
 | Variable | What it does |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude reads free-text stories and writes the statement of facts. Without it, deterministic rules and templates are used. |
+| `OPENROUTER_API_KEY` | The same Claude model through OpenRouter, if you don't have an Anthropic key (`OPENROUTER_MODEL` defaults to `anthropic/claude-opus-5.5`). |
+| `TRACE_BUDGET_SECONDS` | How long tracing may run (default 150). Use 90 on AWS App Runner. |
+| `TRUSTED_PROXY_HOPS` | Proxies in front of the app, so rate limits use the real visitor IP (default 1). |
 | `BLOCKSCOUT_API_KEY` | Enables Base, Arbitrum and Polygon (their public servers block server-side requests). |
 | `TRONGRID_API_KEY` | Faster Tron tracing. |
 | `CASES_PER_10_MIN`, `LOOKUPS_PER_10_MIN` | Per-IP rate limits (defaults 8 and 20). |

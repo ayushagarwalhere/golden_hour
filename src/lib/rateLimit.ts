@@ -14,4 +14,14 @@ export function makeLimiter(maxPerWindow: number) {
   };
 }
 
-export const clientIp = (req: Request) => req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+/**
+ * The visitor's IP. Load balancers (AWS ALB, App Runner, nginx) append the address they saw to X-Forwarded-For,
+ * so the trustworthy entry is counted from the end; the first entry can be typed by anyone to dodge the limit.
+ * TRUSTED_PROXY_HOPS = how many proxies sit in front of the app (default 1).
+ */
+export function clientIp(req: Request) {
+  const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1) || 1);
+  const chain = (req.headers.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (chain.length) return chain[Math.max(0, chain.length - hops)];
+  return req.headers.get("x-real-ip") || "local";
+}
