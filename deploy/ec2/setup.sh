@@ -31,11 +31,16 @@ else
 fi
 
 cd ~/golden_hour/deploy/ec2
+# secrets copied to the home folder with scp are moved into place
+[ -f ~/.env.production ] && mv ~/.env.production .env.production
 if [ ! -f .env.production ]; then
   echo "Missing deploy/ec2/.env.production (copy it from your computer with scp)." >&2
   exit 1
 fi
+# shared secret between the app and the phone relay
+grep -q '^INTERNAL_TOKEN=' .env.production || echo "INTERNAL_TOKEN=$(openssl rand -base64 30 | tr -d '/+=')" >> .env.production
 chmod 600 .env.production
 DOMAIN="$DOMAIN" sudo -E docker compose up -d --build
 echo
 echo "Golden Hour is starting at https://$DOMAIN  (first HTTPS certificate takes ~30 s)"
+echo "Phone line webhook for Twilio: https://$DOMAIN/voice/incoming"

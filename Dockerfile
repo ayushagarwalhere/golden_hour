@@ -20,6 +20,12 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /app/public ./public
 COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static
+# the phone-line relay (same image, started with: node voice/relay.mjs) and its one dependency
+COPY --from=build --chown=app:app /app/voice ./voice
+COPY --from=deps /app/node_modules/ws ./node_modules/ws
+# phone cases (kept 30 days) live in a volume mounted here
+RUN mkdir -p /data/cases && chown -R app:app /data
+ENV DATA_DIR=/data/cases
 USER app
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1

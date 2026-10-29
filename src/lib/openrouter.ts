@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 const URL_ = "https://openrouter.ai/api/v1/chat/completions";
-export const OPENROUTER_MODEL = () => process.env.OPENROUTER_MODEL || "anthropic/claude-opus-5.5";
+export const OPENROUTER_MODEL = () => process.env.OPENROUTER_MODEL || "anthropic/claude-haiku-5.5";
 export const openRouterConfigured = () => Boolean(process.env.OPENROUTER_API_KEY);
 
 export class OpenRouterError extends Error {

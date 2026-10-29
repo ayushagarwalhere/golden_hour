@@ -3,7 +3,12 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { openRouterConfigured, openRouterJson } from "./openrouter";
 
-export const MODEL = "claude-opus-5-5";
+// Haiku 5.5 is the default: fast and inexpensive for intake and short statements. Set ANTHROPIC_MODEL to change it.
+export const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
+
+/** Server-side refusal fallback exists for Opus / Sonnet / Fable, not Haiku; sending it to Haiku would fail the request. */
+export const fallbackParams = (model = MODEL): { betas?: Anthropic.Beta.AnthropicBeta[]; fallbacks?: "default" } =>
+  /haiku/.test(model) ? {} : { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" };
 
 export const IntakeSchema = z.object({
   victimName: z.string().nullable().describe("Victim's name if they gave it"),
@@ -100,8 +105,7 @@ export async function extractIntake(
       const res = await ai().beta.messages.parse({
         model: MODEL,
         max_tokens: 4000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
+        ...fallbackParams(),
         output_config: { effort: "low", format: betaZodOutputFormat(IntakeSchema) },
         system: INTAKE_SYSTEM,
         messages: [{ role: "user", content: user }],

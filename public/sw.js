@@ -2,8 +2,8 @@
 // Pages are network-first (always fresh when online), with the last good copy as a fallback.
 // Static assets are cache-first. API calls are never cached: traces must be live.
 
-const CACHE = "golden-hour-v1";
-const PAGES = ["/", "/check", "/help", "/verify"];
+const CACHE = "golden-hour-v2";
+const PAGES = ["/", "/call", "/check", "/help", "/verify"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

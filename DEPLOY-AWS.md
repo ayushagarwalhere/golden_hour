@@ -79,3 +79,34 @@ Use this if you need longer traces or more control.
 - **Logs:** App Runner sends stdout to CloudWatch. Victims' stories are never logged.
 - **Updating:** build, tag `latest`, push. App Runner redeploys automatically.
 - **Cost:** for a small service, mostly App Runner's per-hour compute plus OpenRouter usage, roughly one intake and one statement call per case.
+
+---
+
+## Single EC2 server (Docker Compose + automatic HTTPS)
+
+1. Launch Ubuntu 24.04 (t3.small or larger, 20 GB gp3, no extra file systems). Security group: SSH from your IP, HTTP and HTTPS from anywhere. Attach an Elastic IP.
+2. Copy your secrets file to the server, never through git:
+   ```bash
+   scp -i golden-hour.pem .env.production ubuntu@<ip>:~/
+   ```
+   It needs `OPENROUTER_API_KEY=…` (or `ANTHROPIC_API_KEY`), plus the Twilio keys below if you want the phone line.
+3. On the server:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/ayushagarwalhere/golden_hour/hackathon-build/deploy/ec2/setup.sh -o setup.sh
+   bash setup.sh            # or: bash setup.sh your-domain.com
+   ```
+   Without a domain the site is served at `https://<ip-with-dashes>.sslip.io`, with a real certificate.
+
+## The phone line (Twilio)
+
+1. In Twilio, buy a voice-capable number. Local numbers in India need KYC; a US number works for testing.
+2. Under **Phone Numbers → your number → Voice → A call comes in**, choose Webhook, `POST`, `https://<your-domain>/voice/incoming`.
+3. Add these to `.env.production` and run `bash setup.sh` again:
+   ```
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   ```
+   With the auth token set, the relay rejects any request not signed by Twilio. With both set, callers get a text message with their link.
+4. Call the number. Callers from +91 numbers are greeted in Hindi, Spanish-speaking countries in Spanish, everyone else in English. They can switch by just speaking another language.
+
+Health checks: `https://<domain>/api/health` (app) and `https://<domain>/voice/health` (phone relay: shows whether signing and SMS are on).

@@ -75,7 +75,7 @@ export function useT() {
 }
 
 /** Read text aloud with the device's own voice (no data leaves the device). */
-export function speak(text: string, lang?: string) {
+export function speak(text: string, lang?: string, onEnd?: () => void) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
   const tag = lang ?? speechLang((document.documentElement.lang as Lang) || "en");
   window.speechSynthesis.cancel();
@@ -84,13 +84,17 @@ export function speak(text: string, lang?: string) {
   const voices = window.speechSynthesis.getVoices();
   const norm = (s: string) => s.replace("_", "-").toLowerCase();
   const voice = voices.find((v) => norm(v.lang) === norm(tag)) ?? voices.find((v) => norm(v.lang).startsWith(norm(tag).slice(0, 2)));
-  for (const c of chunks) {
+  chunks.forEach((c, i) => {
     const u = new SpeechSynthesisUtterance(c.trim());
     u.rate = 0.9;
     u.lang = tag;
     if (voice) u.voice = voice;
+    if (onEnd && i === chunks.length - 1) {
+      u.onend = onEnd;
+      u.onerror = onEnd;
+    }
     window.speechSynthesis.speak(u);
-  }
+  });
   return true;
 }
 

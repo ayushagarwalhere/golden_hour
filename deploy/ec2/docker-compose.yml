@@ -1,17 +1,32 @@
-# Golden Hour on a single server: the app plus Caddy for automatic HTTPS.
+# Golden Hour on one server: the app, the phone-line relay, and Caddy for automatic HTTPS.
 services:
   app:
     build: ../..
+    image: golden-hour:latest
     restart: unless-stopped
-    env_file: .env.production          # OPENROUTER_API_KEY etc. — created on the server, never committed
+    env_file: .env.production          # OPENROUTER_API_KEY, INTERNAL_TOKEN, … — created on the server, never committed
     environment:
       TRUSTED_PROXY_HOPS: "1"          # Caddy sits in front
-      TRACE_BUDGET_SECONDS: "150"
+      PUBLIC_SITE_URL: https://${DOMAIN}
+    volumes:
+      - cases:/data/cases              # phone cases, deleted after 30 days
     expose: ["3000"]
+  voice:
+    image: golden-hour:latest          # same image, different program
+    pull_policy: never
+    restart: unless-stopped
+    depends_on: [app]
+    command: ["node", "voice/relay.mjs"]
+    env_file: .env.production          # INTERNAL_TOKEN, and TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN for the phone line
+    environment:
+      APP_URL: http://app:3000
+      PUBLIC_URL: https://${DOMAIN}
+      VOICE_PORT: "3001"
+    expose: ["3001"]
   caddy:
     image: caddy:2
     restart: unless-stopped
-    depends_on: [app]
+    depends_on: [app, voice]
     ports: ["80:80", "443:443"]
     environment:
       DOMAIN: ${DOMAIN}
@@ -20,5 +35,6 @@ services:
       - caddy_data:/data
       - caddy_config:/config
 volumes:
+  cases:
   caddy_data:
   caddy_config:

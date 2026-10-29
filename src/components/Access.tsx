@@ -142,6 +142,9 @@ export function AccessBar() {
             <Link href="/help" className="btn btn-sun btn-sm mt-6 w-full justify-center" onClick={() => setOpen(false)}>
               {t("a.guide")}
             </Link>
+            <Link href="/call" className="btn btn-ghost btn-sm mt-3 w-full justify-center" onClick={() => setOpen(false)}>
+              📞 {t("call.title")}
+            </Link>
             <Link href="/check" className="btn btn-ghost btn-sm mt-3 w-full justify-center" onClick={() => setOpen(false)}>
               🔍 {t("nav.check")}
             </Link>

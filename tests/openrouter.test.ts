@@ -53,7 +53,7 @@ test("openrouter: intake uses Claude via OpenRouter and keeps the hash guard", a
   assert.equal(r.intake.scamType, "fake_support");
   assert.deepEqual(r.intake.txHashes, [], "invented hash rejected");
   assert.equal(seen[0].auth, "Bearer sk-or-test");
-  assert.equal(seen[0].body?.model, "anthropic/claude-opus-5.5");
+  assert.equal(seen[0].body?.model, "anthropic/claude-haiku-5.5");
   assert.equal((seen[0].body?.response_format as { type: string }).type, "json_schema");
 });
 

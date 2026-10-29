@@ -26,6 +26,7 @@ Many victims are older, have never heard the word "hash", and are in shock. Some
   2. *I only know my wallet address*: Golden Hour lists the money that recently left that wallet on every supported network, in plain words ("−4.99 ETH · Mon 18 Aug, 7:16 PM"), and the victim taps the one they didn't make. **Address-poisoning spam is filtered out.** Fake "USDT"/"USDC" tokens with look-alike letters would otherwise fill the list and invite the wrong tap.
   3. *I don't have anything like that*: for phone scams, Bitcoin ATMs and bank transfers. Golden Hour still writes the police report from the victim's story, lists every code and address they mention, and puts "Call your bank" first.
 - **Results start with what to do, not with data.** "Your money reached KuCoin. KuCoin can freeze it." Then a ticked-off checklist with one big button each: **Call** the helpline (tap to dial), **Copy my letter** / **Open KuCoin help**, **Copy my report** / **Open the police portal**, **Save the evidence file**. The trace graph, transfer list and letter editor sit below under "Full details".
+- **Talk instead of type.** `/call` is a two-way voice call with a calm helper (Claude Haiku): you can interrupt it like a person, it comforts you, asks one simple question at a time, then files the case and reads out what to do today. The same helper answers a **real phone number** through Twilio ConversationRelay (`voice/relay.mjs`), and texts the caller a private link to their report.
 - **Follow-up built in.** "Remind me in 3 days" adds a reminder to the phone's own calendar, and a ready follow-up letter per exchange quotes the first message and asks for a hold confirmation and reference number.
 - **"Is this a scam?"** (`/check`). Paste a message, link or phone number. Fourteen warning signs, each explained in plain words in all three languages: "recovery agents", pay-to-withdraw "tax", secret words, AnyDesk, "digital arrest", secrecy, Bitcoin ATMs and gift cards, look-alike websites and more. It runs on the device, so nothing is uploaded.
 - **Family in the loop.** "Send to family" shares the summary and every letter (via the phone's share sheet, or copied for WhatsApp). "Print everything" produces a paper pack to take to a police station, with the checklist first and each letter on its own page.
@@ -118,8 +119,11 @@ Environment variables (all optional):
 | Variable | What it does |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude reads free-text stories and writes the statement of facts. Without it, deterministic rules and templates are used. |
-| `OPENROUTER_API_KEY` | The same Claude model through OpenRouter, if you don't have an Anthropic key (`OPENROUTER_MODEL` defaults to `anthropic/claude-opus-5.5`). |
+| `OPENROUTER_API_KEY` | The same Claude model through OpenRouter, if you don't have an Anthropic key (`OPENROUTER_MODEL` defaults to `anthropic/claude-haiku-5.5`). |
 | `TRACE_BUDGET_SECONDS` | How long tracing may run (default 150). Use 90 on AWS App Runner. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | The phone line: signed webhooks and the text message with the caller's link (see DEPLOY-AWS.md). |
+| `INTERNAL_TOKEN` | Shared secret between the app and the phone relay (setup generates it). |
+| `NEXT_PUBLIC_HELPLINE_NUMBER` | Shows your phone number on the call page (set at build time). |
 | `TRUSTED_PROXY_HOPS` | Proxies in front of the app, so rate limits use the real visitor IP (default 1). |
 | `BLOCKSCOUT_API_KEY` | Enables Base, Arbitrum and Polygon (their public servers block server-side requests). |
 | `TRONGRID_API_KEY` | Faster Tron tracing. |
@@ -135,7 +139,7 @@ npx tsx scripts/trace.mts <theftTxHash> [victimAddress]
 
 ## Stack
 
-Next.js 15 · TypeScript · React Three Fiber / drei / postprocessing · Motion · Lenis · Anthropic API (`claude-opus-5-5`, structured outputs) · Blockscout API v2 (free, no key) · Zod
+Next.js 15 · TypeScript · React Three Fiber / drei / postprocessing · Motion · Lenis · Claude Haiku 5.5 via the Anthropic API or OpenRouter (structured outputs) · Blockscout API v2 (free, no key) · Zod
 
 ## Limits (stated plainly)
 

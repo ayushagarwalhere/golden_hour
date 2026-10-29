@@ -42,8 +42,10 @@ const SECTIONS: [string, React.ReactNode][] = [
   [
     "What we store",
     <>
-      Nothing about you on our servers. Your case, your edits and your contact details are saved only in your own browser. Your name and contact go only into the letters you
-      download. We never ask for a recovery phrase or private key — and no legitimate helper ever will.
+      On the website and the voice call in your browser: nothing about you is kept on our servers. Your case, your edits and your contact details are saved only in your own
+      browser, and calls are not recorded. If you call the phone line, there is no screen during the call, so your finished case is kept on our server for 30 days under a
+      long private link that we text to you, and then deleted. To understand what you say, your words are sent to Claude (Anthropic, directly or via OpenRouter). We never
+      ask for a recovery phrase or private key — and no legitimate helper ever will.
     </>,
   ],
   [

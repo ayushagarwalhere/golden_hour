@@ -81,6 +81,9 @@ export default function Home() {
           <button className="btn btn-sun btn-lg" onClick={() => scrollToId("begin")}>
             {t("hero.start")}
           </button>
+          <Link className="btn btn-ghost btn-solid btn-lg" href="/call">
+            📞 {t("call.cta")}
+          </Link>
           <button className="btn btn-ghost btn-solid" onClick={() => start(DEMOS.kucoin.input)} disabled={c.status === "tracing"}>
             {t("hero.example")}
           </button>
