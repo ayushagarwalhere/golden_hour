@@ -1,4 +1,4 @@
-import { agentRespond, emptyCollected, FIELDS, greeting, newState, spokenSummary, unsaid, type AgentState, type Channel, type Stage } from "@/lib/agent";
+import { afterCall, agentRespond, emptyCollected, FIELDS, greeting, newState, spokenSummary, unsaid, type AgentState, type CaseFacts, type Channel, type Stage } from "@/lib/agent";
 import { helplinesFor } from "@/lib/directory";
 import type { Lang } from "@/lib/i18n";
 import { clientIp, makeLimiter } from "@/lib/rateLimit";
@@ -9,7 +9,7 @@ export const maxDuration = 60;
 
 const limited = makeLimiter(Number(process.env.AGENT_TURNS_PER_10_MIN ?? 120));
 const LANGS = new Set(["en", "hi", "es"]);
-const STAGES = new Set(["gathering", "confirming", "file", "closing"]);
+const STAGES = new Set(["gathering", "confirming", "file", "closing", "after"]);
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
 
 /** The conversation comes back from the caller's device each turn, so treat every field as untrusted. */
@@ -23,7 +23,20 @@ function readState(raw: unknown, lang: Lang, channel: Channel): AgentState {
   const c = (s.collected && typeof s.collected === "object" ? s.collected : {}) as Record<string, unknown>;
   const collected = emptyCollected();
   for (const f of FIELDS) collected[f] = typeof c[f] === "string" ? str(c[f], 1500) : null;
-  return { lang, channel, turns, collected, stage: STAGES.has(String(s.stage)) ? (s.stage as Stage) : "gathering" };
+  const stage = STAGES.has(String(s.stage)) ? (s.stage as Stage) : "gathering";
+  return { lang, channel, turns, collected, stage, ...(stage === "after" ? { facts: readFacts(s.facts) } : {}) };
+}
+
+function readFacts(raw: unknown): CaseFacts {
+  const f = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    exchange: str(f.exchange, 80) || null,
+    helplineName: str(f.helplineName, 120) || null,
+    helplinePhone: str(f.helplinePhone, 40) || null,
+    storyOnly: f.storyOnly === true,
+    caseId: str(f.caseId, 20),
+    country: str(f.country, 2).toUpperCase(),
+  };
 }
 
 /**
@@ -32,6 +45,7 @@ function readState(raw: unknown, lang: Lang, channel: Channel): AgentState {
  *   { lang, channel, state, text }          → the helper's next reply
  *   { lang, channel, state, text, stream: true } → the same, streamed sentence by sentence (NDJSON)
  *   { lang, channel, summary: {...} }       → what to say once the case is done
+ *   { lang, channel, summary, state }       → the same, and the call stays open for questions (stage "after")
  */
 export async function POST(req: Request) {
   // the phone relay speaks for many callers from one address
@@ -51,16 +65,15 @@ export async function POST(req: Request) {
     const r = body.summary as Record<string, unknown>;
     const country = str(r.country, 2).toUpperCase();
     const h = helplinesFor(country)[0] ?? null;
-    return Response.json({
-      say: spokenSummary(lang, {
-        storyOnly: r.storyOnly === true,
-        exchange: str(r.exchange, 80) || null,
-        helpline: h ? { name: h.name.split(" (")[0], phone: h.phone } : null,
-        caseId: str(r.caseId, 20),
-        channel,
-        texted: r.texted === true,
-      }),
-    });
+    const helpline = h ? { name: h.name.split(" (")[0], phone: h.phone } : null;
+    const facts: CaseFacts = { exchange: str(r.exchange, 80) || null, helplineName: helpline?.name ?? null, helplinePhone: helpline?.phone ?? null, storyOnly: r.storyOnly === true, caseId: str(r.caseId, 20), country };
+    const say = spokenSummary(lang, { storyOnly: facts.storyOnly, exchange: facts.exchange, helpline, caseId: facts.caseId, channel, texted: r.texted === true });
+    // with the conversation, the call carries on: the helper stays on the line for questions
+    if (body.state) {
+      const state = afterCall(readState(body.state, lang, channel), facts, say);
+      return Response.json({ say: state.turns[state.turns.length - 1].text, state });
+    }
+    return Response.json({ say });
   }
 
   if (!body.state) {

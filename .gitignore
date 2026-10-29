@@ -47,3 +47,6 @@ next-env.d.ts
 deploy/ec2/.env.production
 /data
 deploy/ec2/server.env
+
+# rendered submission video (too large for git)
+/submission

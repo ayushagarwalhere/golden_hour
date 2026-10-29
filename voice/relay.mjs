@@ -150,13 +150,16 @@ wss.on("connection", (ws) => {
         log("could not store case:", e.message);
       }
       const texted = link ? await sendSms(call.from, call.to, `Golden Hour — your police report and letters (case ${result.caseId}): ${link}\nNever pay anyone who offers to recover your money.`) : false;
-      const { say: summary } = await (
+      // with the conversation sent along, the helper stays on the line for questions afterwards
+      const { say: summary, state } = await (
         await app("/api/agent", {
           lang: call.lang,
           channel: "phone",
+          state: call.state,
           summary: { texted, storyOnly: result.storyOnly === true, exchange: trace?.freezeTargets?.[0]?.entity ?? null, country: input.country, caseId: result.caseId },
         })
       ).json();
+      if (state) call.state = state;
       say(summary);
     } catch (e) {
       log("case failed:", e.message);

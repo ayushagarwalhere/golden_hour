@@ -77,22 +77,33 @@ export default function Home() {
         <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.4, ease, delay: 0.9 }} className="mt-8 max-w-2xl text-xl leading-9 md:text-2xl md:leading-10" style={{ color: "var(--mist)" }}>
           {t("hero.sub")}
         </motion.p>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.4, delay: 1.3 }} className="mt-10 flex flex-col items-center gap-4">
-          <button className="btn btn-sun btn-lg" onClick={() => scrollToId("begin")}>
-            {t("hero.start")}
-          </button>
-          <Link className="btn btn-ghost btn-solid btn-lg" href="/call">
-            📞 {t("call.cta")}
-          </Link>
-          <button className="btn btn-ghost btn-solid" onClick={() => start(DEMOS.kucoin.input)} disabled={c.status === "tracing"}>
-            {t("hero.example")}
-          </button>
-          <Link className="btn btn-ghost btn-solid" href="/check">
-            🔍 {t("chk.cta")}
-          </Link>
-          <Link className="mt-2 hidden rounded-full px-4 py-2 text-sm underline underline-offset-4 md:inline-block" style={{ background: "rgba(22,12,28,0.55)", color: "var(--cream)" }} href="/judge">
-            {t("hero.judges")}
-          </Link>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.4, delay: 1.3 }} className="mt-10 flex flex-col items-center gap-6">
+          {/* the two ways in: answer questions, or just talk */}
+          <div className="flex flex-col items-center gap-3 sm:flex-row">
+            <button className="btn btn-sun btn-lg" onClick={() => scrollToId("begin")}>
+              {t("hero.start")}
+            </button>
+            <Link className="btn btn-ghost btn-solid btn-lg" href="/call">
+              📞 {t("call.cta")}
+            </Link>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 rounded-full px-2 py-1 text-base" style={{ background: "rgba(22,12,28,0.55)" }}>
+            <button className="rounded-full px-4 py-2.5 underline-offset-4 hover:underline disabled:opacity-50" onClick={() => start(DEMOS.kucoin.input)} disabled={c.status === "tracing"}>
+              {t("hero.example")}
+            </button>
+            <span aria-hidden style={{ color: "var(--faint)" }}>
+              ·
+            </span>
+            <Link className="rounded-full px-4 py-2.5 underline-offset-4 hover:underline" href="/check">
+              🔍 {t("chk.cta")}
+            </Link>
+            <span aria-hidden className="hidden md:inline" style={{ color: "var(--faint)" }}>
+              ·
+            </span>
+            <Link className="hidden rounded-full px-4 py-2.5 underline-offset-4 hover:underline md:inline-block" href="/judge">
+              {t("hero.judges")}
+            </Link>
+          </div>
         </motion.div>
         <motion.div className="absolute bottom-8 text-xs tracking-[0.3em]" style={{ color: "var(--faint)" }} animate={{ y: [0, 8, 0] }} transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}>
           SCROLL

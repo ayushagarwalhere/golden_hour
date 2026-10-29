@@ -64,7 +64,10 @@ const WINDOW_MS = 45 * 24 * 3600 * 1000; // follow funds for up to 45 days after
 const DUST = 0.01; // ignore remainders under 1% of the incoming amount
 const MAX_FANOUT = 5; // onward transfers followed per wallet
 // TRACE_BUDGET_SECONDS lowers this on hosts with short request limits (e.g. 90 on AWS App Runner, which cuts requests at 120 s)
-const TIME_BUDGET_MS = (Number(process.env.TRACE_BUDGET_SECONDS) || 150) * 1000; // stop opening new hops after this; leftovers are marked for manual follow-up
+const TIME_BUDGET_MS = (Number(process.env.TRACE_BUDGET_SECONDS) || 150) * 1000;
+const BALANCE_CHECKS = 24; // "is money still sitting here?" for the wallets that received the most
+const BALANCE_WORKERS = 6;
+const BALANCE_MS = 15_000; // stop opening new hops after this; leftovers are marked for manual follow-up
 
 const lc = (s: string) => s.toLowerCase();
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -221,26 +224,39 @@ export async function traceTheft(
   inferDeposits(nodes, edges);
 
   // ---- 4. Is money still sitting anywhere? ----
-  const watch = [...nodes.values()].filter((n) => n.kind === "wallet" || n.kind === "exchange_deposit" || n.kind === "scam");
+  // The wallets that received the most stolen money first, a few at a time and within a short time limit:
+  // a victim waiting on a big case shouldn't sit through a minute of throttled balance look-ups.
+  const inflow = new Map<string, number>();
+  for (const e of edges) inflow.set(e.to, (inflow.get(e.to) ?? 0) + (e.usd ?? e.amount));
+  const watch = [...nodes.values()]
+    .filter((n) => n.kind === "wallet" || n.kind === "exchange_deposit" || n.kind === "scam")
+    .sort((a, b) => (inflow.get(b.address) ?? 0) - (inflow.get(a.address) ?? 0))
+    .slice(0, BALANCE_CHECKS);
   emit({ type: "step", message: `Checking current balances on ${watch.length} wallet(s)` });
-  await Promise.all(
-    watch.map(async (n) => {
-      const [a, toks] = await Promise.all([
-        bs.address(n.address).catch(() => null),
-        bs.tokenBalances(n.address).catch(() => []),
-      ]);
-      const holding: { symbol: string; amount: number }[] = [];
-      const native = units(a?.coin_balance, NATIVE.decimals);
-      if (native > 0.0001) holding.push({ symbol: NATIVE.symbol, amount: native });
-      for (const s of stolen.values()) {
-        if (s.asset.key === NATIVE_KEY) continue;
-        const tb = toks.find((t) => tokenAddress(t.token) === s.asset.key);
-        const amt = tb ? units(tb.value, s.asset.decimals) : 0;
-        if (amt > 0) holding.push({ symbol: s.asset.symbol, amount: amt });
-      }
-      if (holding.length) n.holdingNow = holding;
-    }),
-  );
+  const balanceDeadline = Date.now() + BALANCE_MS;
+  let next = 0;
+  let closed = false;
+  const worker = async () => {
+    while (next < watch.length && Date.now() < balanceDeadline) await checkBalance(watch[next++]);
+  };
+  const checkBalance = async (n: TraceNode) => {
+    const [a, toks] = await Promise.all([
+      bs.address(n.address).catch(() => null),
+      bs.tokenBalances(n.address).catch(() => []),
+    ]);
+    const holding: { symbol: string; amount: number }[] = [];
+    const native = units(a?.coin_balance, NATIVE.decimals);
+    if (native > 0.0001) holding.push({ symbol: NATIVE.symbol, amount: native });
+    for (const s of stolen.values()) {
+      if (s.asset.key === NATIVE_KEY) continue;
+      const tb = toks.find((t) => tokenAddress(t.token) === s.asset.key);
+      const amt = tb ? units(tb.value, s.asset.decimals) : 0;
+      if (amt > 0) holding.push({ symbol: s.asset.symbol, amount: amt });
+    }
+    if (holding.length && !closed) n.holdingNow = holding; // late answers don't change a finished trace
+  };
+  await Promise.race([Promise.all(Array.from({ length: BALANCE_WORKERS }, worker)), new Promise((r) => setTimeout(r, BALANCE_MS + 2000))]);
+  closed = true;
 
   // ---- 5. Summaries ----
   const freezeTargets = freezeTargetsFrom(nodes, edges);

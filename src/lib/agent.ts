@@ -13,13 +13,16 @@ import { llmAvailable, llmJson, llmJsonStream, partialString, sentenceEnd } from
 
 export type Channel = "web" | "phone";
 export type Turn = { role: "caller" | "agent"; text: string };
-export type Stage = "gathering" | "confirming" | "file" | "closing";
+/** "after": the case is written and the helper stays on the line for questions. */
+export type Stage = "gathering" | "confirming" | "file" | "closing" | "after";
 
 export const FIELDS = ["whatHappened", "whenItHappened", "amountLost", "howTheyPaid", "scammerContact", "country", "name", "callback", "transactionCode", "walletAddress"] as const;
 export type Field = (typeof FIELDS)[number];
 export type Collected = Record<Field, string | null>;
 
-export type AgentState = { lang: Lang; channel: Channel; turns: Turn[]; collected: Collected; stage: Stage };
+/** What the helper knows about the finished case, so it can answer "what now?" questions. */
+export type CaseFacts = { exchange: string | null; helplineName: string | null; helplinePhone: string | null; storyOnly: boolean; caseId: string; country: string };
+export type AgentState = { lang: Lang; channel: Channel; turns: Turn[]; collected: Collected; stage: Stage; facts?: CaseFacts };
 /** `streamed` is the part of `say` already handed to onSay, sentence by sentence (empty when not streaming). */
 export type AgentReply = { say: string; state: AgentState; input?: CaseInput; end?: boolean; aiUsed: boolean; streamed?: string };
 
@@ -156,6 +159,14 @@ function scripted(state: AgentState, text: string): { say: string; collected: Co
   const t = (k: Key) => translate(state.lang, k);
   const c = { ...state.collected };
   if (STOP.test(text)) return { say: t("ag.bye"), collected: c, stage: "closing" };
+  // Just a code pasted in the box: keep it, and carry on where we were (it doesn't answer the last question).
+  const pasted = text.trim();
+  if (TX.test(pasted) || ADDR.test(pasted)) {
+    if (TX.test(pasted)) c.transactionCode = pasted;
+    else c.walletAddress = pasted;
+    const pending = state.stage === "confirming" ? null : ASK.find((q) => !c[q.field]);
+    return { say: `${t("ag.gotCode")} ${t(pending ? pending.key : state.stage === "confirming" ? "ag.confirmAgain" : "ag.confirm")}`, collected: c, stage: pending ? "gathering" : "confirming" };
+  }
   if (state.stage === "confirming") {
     return YES.test(text) && !NOT_YET.test(text) ? { say: t("ag.filing"), collected: c, stage: "file" } : { say: t("ag.whatElse"), collected: c, stage: "gathering" };
   }
@@ -223,6 +234,7 @@ export async function agentRespond(prev: AgentState, callerText: string, opts: {
   let lang = state.lang;
   let aiUsed = false;
   const feed = opts.onSay ? sentenceFeed(opts.onSay) : null;
+  if (state.stage === "after") return afterRespond(state, text, feed, opts.timeoutMs);
 
   // "Yes, please write it": nothing to ask a model, and the caller shouldn't wait.
   const agreed = state.stage === "confirming" && YES.test(text) && !NOT_YET.test(text) && !STOP.test(text) && Boolean(state.collected.whatHappened);
@@ -313,4 +325,88 @@ export function spokenNumber(s: string) {
     .filter(Boolean)
     .map((g) => g.split("").join(" "))
     .join(", ");
+}
+
+// ---------- after the case is written: the helper stays on the line ----------
+
+/** The conversation after the summary: same call, now about what to do next. */
+export function afterCall(state: AgentState, facts: CaseFacts, summary: string): AgentState {
+  const say = `${summary} ${translate(state.lang, "ag.anyQuestions")}`;
+  return { ...state, stage: "after", facts, turns: [...state.turns, { role: "agent" as const, text: say }].slice(-MAX_TURNS) };
+}
+
+const AfterOut = z.object({
+  say: z.string().describe("Your spoken answer: 1-3 short sentences, in the caller's language"),
+  lang: z.enum(["en", "hi", "es"]),
+  done: z.boolean().describe("true only if the caller has no more questions or says goodbye"),
+});
+
+function afterSystem(state: AgentState) {
+  const f = state.facts;
+  const phone = state.channel === "phone";
+  return [
+    "You are the voice of Golden Hour, a free helpline for people who lost money to a crypto scam or theft.",
+    "The caller's police report and letters are already written. Stay with them and answer their questions about what to do next.",
+    `Their documents are ${phone ? "in a link you texted them" : "on their screen"}, with a checklist: call the helpline, send the freeze letter, file the police report, save the evidence file.`,
+    f?.exchange ? `The stolen money reached ${f.exchange}. ${f.exchange} can freeze the account if asked today; the letter is ready.` : "The money was not traced to an exchange; the police report is the key document.",
+    f?.helplineName ? `Their helpline: ${f.helplineName}, ${f.helplinePhone}. Read phone numbers digit by digit.` : "",
+    `Case number ${f?.caseId ?? "unknown"}.`,
+    "Rules: be brief and warm (1-3 sentences). Never promise the money will come back. Anyone offering to recover money for a fee is a scammer.",
+    "Never ask for secret words, private keys, passwords or codes. Don't give legal advice beyond these steps; suggest a lawyer or the police for that.",
+    "If they say they have no more questions, thank them, say goodbye kindly and set done=true. Answer in the caller's language.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+const FAQ: { re: RegExp; key: Key }[] = [
+  { re: /(someone|somebody|a man|a woman|they|he|she|people)\b.{0,50}\b(call(ed|ing)?|messag\w*|text\w*|offer\w*|contact\w*|email\w*)|recovery (agent|service|company|expert)|hacker|get it back for|कोई.{0,30}(फ़ोन|फोन|कॉल|मैसेज)|वापस दिलाने वाला|alguien.{0,40}(llam|escrib|ofrec)|recuperaci[oó]n/i, key: "ag.faqRecovery" },
+  { re: /\b(send|letter|email|write to|freeze)\b|kucoin|binance|coinbase|kraken|okx|bybit|gate\.?io|पत्र|लेटर|चिट्ठी|भेज|\bcarta\b|enviar|congelar/i, key: "ag.faqSend" },
+  { re: /\b(police|report|fir|complaint|station)\b|पुलिस|शिकायत|एफ़आईआर|एफआईआर|polic[ií]a|denuncia|comisar[ií]a/i, key: "ag.faqPolice" },
+  { re: /\b(back|recover|return|refund)\b|will i get|वापस|मिलेगा|recuperar|devolver|devuelv/i, key: "ag.faqBack" },
+  { re: /\b(family|son|daughter|husband|wife|grand\w*|children|kids|brother|sister)\b|परिवार|बेटा|बेटी|पति|पत्नी|पोता|familia|hij[oa]|espos[oa]|niet[oa]/i, key: "ag.faqFamily" },
+  { re: /\b(helpline|who (do|should|can) i call|number to call|call who)\b|1930|हेल्पलाइन|किसे फ़ोन|किसको फोन|n[uú]mero|a qui[eé]n llam/i, key: "ag.faqHelpline" },
+  { re: /\b(safe|wallet|password|secret words|seed|phrase|hack(ed)?)\b|सुरक्षित|वॉलेट|पासवर्ड|segur[oa]|billetera|contrase[nñ]a/i, key: "ag.faqSafe" },
+];
+const DONE = /^\s*(no+|nope|nothing( else)?|that'?s (all|it)|thank(s| you)[\s\S]{0,20}$|ok(ay)?,? (bye|thanks)|bye|goodbye)\b|^\s*(बस|नहीं|धन्यवाद|शुक्रिया|अलविदा)|^\s*(nada( más)?|gracias|adi[oó]s|eso es todo|no,? gracias)/i;
+
+function afterScripted(state: AgentState, text: string): { say: string; done: boolean } {
+  const f = state.facts;
+  const t = (k: Key, v?: Record<string, string>) => translate(state.lang, k, v);
+  const where = t(state.channel === "phone" ? "ag.wherePhone" : "ag.whereWeb");
+  const hit = FAQ.find((q) => q.re.test(text));
+  if (!hit) return DONE.test(text) || STOP.test(text) ? { say: t("ag.byeAfter"), done: true } : { say: t("ag.faqUnknown", { where }), done: false };
+  let key = hit.key;
+  if (key === "ag.faqSend" && !f?.exchange) key = "ag.faqPolice";
+  if (key === "ag.faqBack" && f?.exchange) key = "ag.faqBackEx";
+  if (key === "ag.faqHelpline" && !f?.helplineName) key = "ag.faqPolice";
+  return {
+    say: t(key, { entity: f?.exchange ?? "", where, name: f?.helplineName ?? "", phone: f?.helplinePhone ? spokenNumber(f.helplinePhone) : "" }),
+    done: false,
+  };
+}
+
+async function afterRespond(state: AgentState, text: string, feed: ReturnType<typeof sentenceFeed> | null, timeoutMs?: number): Promise<AgentReply> {
+  let out: z.infer<typeof AfterOut> | null = null;
+  if (llmAvailable()) {
+    const ask = {
+      system: afterSystem(state),
+      user: "Conversation so far:\n" + state.turns.slice(-16).map((t) => `${t.role === "caller" ? "Caller" : "You"}: ${t.text}`).join("\n"),
+      schema: AfterOut,
+      name: "helpline_after",
+      maxTokens: 500,
+      timeoutMs: timeoutMs ?? 12_000,
+    };
+    try {
+      out = feed
+        ? await llmJsonStream({ ...ask, onText: (soFar) => { const p = partialString(soFar, "say"); if (p) feed.push(p.text, p.done); } })
+        : await llmJson(ask);
+    } catch (err) {
+      console.warn("agent: model unavailable after the case, using scripted answers:", err instanceof Error ? err.message : err);
+    }
+  }
+  const r = out ? { say: out.say.trim().slice(0, MAX_SAY), done: out.done } : afterScripted(state, text);
+  const lang = out?.lang ?? state.lang;
+  const nextState: AgentState = { ...state, lang, stage: r.done ? "closing" : "after", turns: [...state.turns, { role: "agent" as const, text: r.say }].slice(-MAX_TURNS) };
+  return { say: r.say, state: nextState, end: r.done, aiUsed: Boolean(out), ...(feed ? { streamed: feed.streamed } : {}) };
 }

@@ -1,11 +1,17 @@
 # Golden Hour — BLI Legal Tech Hackathon 2
 
 **Stolen crypto? The next hour matters.**
+
+- **Live:** https://3-26-157-118.sslip.io (no sign-up). Judges: start at [`/judge`](https://3-26-157-118.sslip.io/judge), or just press **Talk to a helper** at [`/call`](https://3-26-157-118.sslip.io/call).
+- **Video:** `golden-hour-submission.mp4` (3 minutes, filmed from the live app end to end).
+- **Code:** this repository. `npm test` runs 70+ tests. Deploying: [DEPLOY-AWS.md](DEPLOY-AWS.md).
+
 Golden Hour turns a scam victim's own words into the legal paperwork that can freeze the money: a police report, a freeze-and-preserve request to each exchange, a stablecoin freeze request for the issuer, and a tamper-evident evidence file. It is built for the people this actually happens to, who are mostly older and not technical.
 
 ## The problem
 
-- In 2025, Americans reported **about $11.4 billion** in crypto fraud losses to the FBI. People **aged 60 and over lost $4.4 billion**, more than any other age group. Bitcoin-ATM scams rose 58% to $389 million. (FBI IC3 2025 Internet Crime Report, as reported by [The Block](https://www.theblock.co/post/397134/fbi-says-crypto-related-fraud-losses-hit-record-11-4-billion-in-2025-with-seniors-bearing-the-brunt).)
+- In 2025, Americans reported **$11.4 billion** in crypto fraud losses to the FBI. People **aged 60 and over lost $4.4 billion** of it, more than any other age group. Seniors also lost **$540 million to fake "recovery" services**. Bitcoin-ATM scams cost $389 million, $257 million of it from people over 60. ([FBI IC3 2025 Internet Crime Report](https://www.ic3.gov/AnnualReport/Reports/2025_IC3Report.pdf).)
+- Speed decides the outcome. When frauds were reported quickly, the FBI's Recovery Asset Team froze **$679 million, a 58% success rate** (same report). India's 1930 helpline is built around the same "golden hour" idea.
 - Recovery is possible, but only fast. Exchanges know who their customers are and can freeze an account. Tether and Circle can freeze USDT/USDC wherever it sits: the Tether / Tron / TRM Labs "T3 Financial Crime Unit" reports **more than $450 million frozen** since 2024 ([Forklog](https://forklog.com/en/tether-tron-and-trm-labs-alliance-freezes-450-million-in-crypto-assets/amp/)).
 - What blocks this is paperwork. A freeze needs exact transaction hashes, deposit addresses and times, plus a police case number. A 75-year-old who has just lost their savings can't produce that. Within hours, fake "recovery agents" target them again.
 

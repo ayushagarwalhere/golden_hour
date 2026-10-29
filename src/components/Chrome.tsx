@@ -53,7 +53,7 @@ export function Nav({ right }: { right?: React.ReactNode }) {
 export function Footer() {
   const t = useT();
   return (
-    <footer className="relative z-10 flex flex-col items-center gap-3 px-5 pb-10 text-center text-sm" style={{ color: "var(--faint)" }}>
+    <footer className="relative z-10 flex flex-col items-center gap-3 px-5 pb-28 text-center text-sm md:pb-10" style={{ color: "var(--faint)" }}>
       <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="Footer">
         <Link className="hover:underline" href="/call">
           {t("call.title")}

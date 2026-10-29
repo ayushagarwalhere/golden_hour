@@ -14,7 +14,9 @@ Golden Hour helps victims of crypto theft act in the window when it still counts
 
 Built for the **BLI Legal Tech Hackathon 2** (Blockchain Legal Institute, DoraHacks).
 
-> Try it: run the app and open `/?demo=1` or `/?demo=zoom` to replay a real, publicly documented theft. Judges: see [SUBMISSION.md](SUBMISSION.md) and the guided walkthrough at `/judge`.
+> **Live:** https://3-26-157-118.sslip.io · talk to the helper at [`/call`](https://3-26-157-118.sslip.io/call) · judges' walkthrough at [`/judge`](https://3-26-157-118.sslip.io/judge)
+>
+> Try it locally: run the app and open `/?demo=1` or `/?demo=zoom` to replay a real, publicly documented theft. Judges: see [SUBMISSION.md](SUBMISSION.md) and the guided walkthrough at `/judge`.
 
 ## Built for the people this actually happens to
 

@@ -145,3 +145,55 @@ test("voice: speech is cut into short pieces, and slow speakers get more time to
   assert.ok(turnPause("मैंने पैसे भेजे और", true) > turnPause("मैंने पैसे भेजे", true));
   assert.ok(turnPause("still talking", false) > turnPause("still talking", true), "wait longer while words are still being recognised");
 });
+
+test("agent: a transfer code pasted mid-call is kept, and doesn't count as the answer to the last question", async () => {
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_AUTH_TOKEN;
+  delete process.env.OPENROUTER_API_KEY;
+  const code = "0x13c78d3568cb403b26b94d8525cc75a7adb68e3f1def0a17fe846a23e86be793";
+  const a = await agentRespond(started(), "My wallet was emptied after I installed an update");
+  const b = await agentRespond(a.state, code);
+  assert.equal(b.state.collected.transactionCode, code);
+  assert.equal(b.state.collected.whenItHappened, null, "the code is not 'when it happened'");
+  assert.match(b.say, /transfer code/);
+  assert.match(b.say, /When did this happen\?$/, "and the question is asked again");
+  const s = { ...b.state, stage: "confirming" as const };
+  const c = await agentRespond(s, code);
+  assert.equal(c.state.stage, "confirming");
+  assert.match(c.say, /Shall I write/);
+});
+
+test("after the report: the helper stays on the line and answers what-now questions from the case", async () => {
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_AUTH_TOKEN;
+  delete process.env.OPENROUTER_API_KEY;
+  const { afterCall } = await import("../src/lib/agent");
+  const facts = { exchange: "KuCoin", helplineName: "National Cyber Crime Helpline", helplinePhone: "1930", storyOnly: false, caseId: "GH-1", country: "IN" };
+  const s = afterCall(started(), facts, "Your money reached KuCoin.");
+  assert.equal(s.stage, "after");
+  assert.match(s.turns.at(-1)!.text, /Your money reached KuCoin\. Do you have any questions\?/);
+
+  const send = await agentRespond(s, "How do I send the letter?");
+  assert.match(send.say, /KuCoin/);
+  assert.match(send.say, /Copy my letter/);
+  assert.equal(send.state.stage, "after", "still on the line");
+
+  assert.match((await agentRespond(s, "Will I get my money back?")).say, /can't promise[\s\S]*KuCoin can freeze it/);
+  assert.match((await agentRespond(s, "A man just called me offering to recover it for a fee")).say, /second scam/);
+  assert.match((await agentRespond(s, "Who should I call?")).say, /1 9 3 0/);
+  assert.match((await agentRespond(s, "Can my son help?")).say, /Send to family/);
+
+  const bye = await agentRespond(s, "No, that's all. Thank you.");
+  assert.equal(bye.end, true);
+  assert.equal(bye.state.stage, "closing");
+
+  // phone callers are pointed at the link they were texted, not a screen
+  const ph = afterCall({ ...started(), channel: "phone" }, facts, "Done.");
+  assert.match((await agentRespond(ph, "how do I report it to the police")).say, /in the link I sent you/);
+
+  // Hindi and Spanish callers get the same help in their language
+  const hi = afterCall({ ...newState("hi", "web"), turns: [] }, facts, "हो गया।");
+  assert.match((await agentRespond(hi, "क्या मेरा पैसा वापस मिलेगा?")).say, /वादा नहीं/);
+  const es = afterCall({ ...newState("es", "web"), turns: [] }, { ...facts, exchange: null }, "Listo.");
+  assert.match((await agentRespond(es, "¿Cómo envío la carta?")).say, /denuncia/, "no exchange: the police report is the letter to send");
+});

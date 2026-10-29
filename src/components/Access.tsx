@@ -71,7 +71,9 @@ export function LangSwitch() {
 
 /** Floating help & comfort controls on every page. */
 export function AccessBar() {
-  const onCall = usePathname()?.startsWith("/call") ?? false;
+  // not on the call itself, and not over the judges' immersive walkthrough
+  const path = usePathname() ?? "";
+  const hideCall = path.startsWith("/call") || path.startsWith("/judge");
   const { textSize, setTextSize, calm, setCalm, contrast, setContrast } = usePrefs();
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -81,7 +83,7 @@ export function AccessBar() {
     ["xl", "A++", t("a.biggest")],
   ];
   return (
-    <div className="fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-3 md:bottom-6 md:right-6">
+    <aside aria-label={t("nav.help")} className="fixed bottom-4 right-4 z-60 flex flex-col items-end gap-3 md:bottom-6 md:right-6">
       <AnimatePresence>
         {open && (
           <motion.div
@@ -153,21 +155,25 @@ export function AccessBar() {
           </motion.div>
         )}
       </AnimatePresence>
-      {!open && !onCall && (
-        <Link
-          href="/call"
-          className="btn h-14 w-14 justify-center p-0 shadow-lg sm:h-auto sm:w-auto sm:px-5 sm:py-3.5"
-          style={{ background: "#2f8f5b", color: "white", border: "1px solid rgba(255,255,255,0.25)" }}
-          aria-label={t("call.title")}
-        >
-          <span aria-hidden className="text-xl">📞</span>
-          <span className="hidden sm:inline">&nbsp;{t("call.fab")}</span>
-        </Link>
-      )}
-      <button className="btn btn-sun shadow-lg" style={{ padding: "14px 20px" }} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={t("a.button")}>
-        {open ? t("a.close") : t("a.button")}
-      </button>
-    </div>
+      {/* one row, so the two buttons cover as little of the page as possible */}
+      <div className="flex items-center gap-2">
+        {!open && !hideCall && (
+          <Link
+            href="/call"
+            data-fab="call"
+            className="btn h-13 w-13 justify-center p-0 shadow-lg md:h-auto md:w-auto md:px-5 md:py-3.5"
+            style={{ background: "#2f8f5b", color: "white", border: "1px solid rgba(255,255,255,0.25)" }}
+            aria-label={t("call.title")}
+          >
+            <span aria-hidden className="text-xl">📞</span>
+            <span className="hidden md:inline">&nbsp;{t("call.fab")}</span>
+          </Link>
+        )}
+        <button className="btn btn-sun h-13 shadow-lg" style={{ padding: "0 20px" }} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={t("a.button")}>
+          {open ? t("a.close") : t("a.button")}
+        </button>
+      </div>
+    </aside>
   );
 }
 

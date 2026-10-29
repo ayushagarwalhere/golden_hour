@@ -32,7 +32,9 @@ type Rec = {
   onerror: ((e: { error: string }) => void) | null;
 };
 
-type Phase = "idle" | "active" | "filing" | "done" | "ended";
+/** "after": the case is written, the results are on screen, and the line stays open for questions. */
+type Phase = "idle" | "active" | "filing" | "after" | "done" | "ended";
+const lineOpen = (p: Phase) => p === "active" || p === "after";
 type Status = "listening" | "speaking" | "thinking";
 type Line = { who: "you" | "helper"; text: string; cut?: boolean };
 type StreamEvent = { type: "say"; text: string } | ({ type: "reply"; rest: string } & AgentReply) | { type: "error" };
@@ -49,6 +51,7 @@ function isEcho(heard: string, saying: string) {
 const HALT = /^(stop|wait|sorry|hello|ruko|रुको|रुकिए|सुनो|espera|para|oiga)$/i;
 
 const NUDGE_AFTER = 15_000;
+const AFTER_QUIET = 45_000; // after the case: this long without a question, the helper says goodbye
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 async function readLines(body: ReadableStream<Uint8Array>, onLine: (ev: StreamEvent) => void) {
@@ -149,6 +152,14 @@ export default function CallPage() {
   /** If the caller goes quiet, gently check in (twice at most), like a person on the phone would. */
   const armNudge = () => {
     clearNudge();
+    if (phaseRef.current === "after" && !mutedRef.current) {
+      nudgeTimer.current = setTimeout(() => {
+        if (phaseRef.current !== "after" || busyRef.current || speakerRef.current?.busy || bufferRef.current) return;
+        sayLine(tRef.current("ag.byeAfter"));
+        afterSpeech("end", hangUp);
+      }, AFTER_QUIET);
+      return;
+    }
     if (phaseRef.current !== "active" || mutedRef.current || nudges.current >= 2) return;
     nudgeTimer.current = setTimeout(() => {
       if (phaseRef.current !== "active" || busyRef.current || speakerRef.current?.busy || bufferRef.current) return;
@@ -205,7 +216,7 @@ export default function CallPage() {
 
   async function send(text: string) {
     const clean = text.trim();
-    if (!clean || !stateRef.current || phaseRef.current !== "active") return;
+    if (!clean || !stateRef.current || !lineOpen(phaseRef.current)) return;
     if (busyRef.current) {
       // still answering the last thing: keep this for the next turn
       bufferRef.current = `${bufferRef.current} ${clean}`.trim();
@@ -251,11 +262,11 @@ export default function CallPage() {
       if (!started) sayLine(tRef.current("err.busy"));
     } finally {
       busyRef.current = false;
-      if (!speakerRef.current?.busy && phaseRef.current === "active") {
+      if (!speakerRef.current?.busy && lineOpen(phaseRef.current)) {
         setStatus("listening");
         if (!bufferRef.current) armNudge();
       }
-      if (bufferRef.current && phaseRef.current === "active") {
+      if (bufferRef.current && lineOpen(phaseRef.current)) {
         const next = bufferRef.current;
         bufferRef.current = "";
         send(next);
@@ -277,21 +288,32 @@ export default function CallPage() {
     return () => clearInterval(id);
   }, [phase, t]);
 
-  // When the case finishes, tell the caller what happened and what to do today, then end the call gently.
+  // When the case finishes, tell the caller what happened and what to do today, and stay on the line for questions.
   useEffect(() => {
     if (phase !== "filing") return;
     if (c.status === "done" && c.result) {
-      setPhaseBoth("done");
       speakerRef.current?.stop();
       post({
+        state: stateRef.current,
         summary: { storyOnly: c.result.storyOnly === true, exchange: c.trace?.freezeTargets[0]?.entity ?? null, country: c.input?.country ?? "", caseId: c.result.caseId },
       })
         .then((res) => res.json())
-        .then((r: { say: string }) => {
-          sayLine(r.say);
-          afterSpeech("end", () => release(true));
+        .then((r: { say: string; state?: AgentState }) => {
+          if (r.state) {
+            stateRef.current = r.state;
+            setPhaseBoth("after");
+            sayLine(r.say);
+            if (!mutedRef.current) listen();
+          } else {
+            setPhaseBoth("done");
+            sayLine(r.say);
+            afterSpeech("end", () => release(true));
+          }
         })
-        .catch(() => release(true));
+        .catch(() => {
+          setPhaseBoth("done");
+          release(true);
+        });
     } else if (c.status === "error") {
       setPhaseBoth("active");
       sayLine(t("ag.failed"));
@@ -370,7 +392,7 @@ export default function CallPage() {
     };
     rec.onend = () => {
       // browsers stop listening after a while; keep the line open while the call is on
-      if (phaseRef.current === "active" && !mutedRef.current && recRef.current === rec) {
+      if (lineOpen(phaseRef.current) && !mutedRef.current && recRef.current === rec) {
         try {
           rec.start();
         } catch {
@@ -429,8 +451,9 @@ export default function CallPage() {
     speakerRef.current?.stop();
     stopSpeaking();
     afterRef.current = null;
-    release(p === "active" || p === "filing");
+    release(p === "active" || p === "filing" || p === "after");
     if (p === "active") setPhaseBoth("ended");
+    if (p === "after") setPhaseBoth("done"); // the results stay on screen
   }
 
   function toggleMute() {
@@ -440,13 +463,14 @@ export default function CallPage() {
     if (m) {
       clearNudge();
       stopListening();
-    } else if (phaseRef.current === "active") listen();
+    } else if (lineOpen(phaseRef.current)) listen();
   }
 
   useEffect(() => () => hangUp(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const phone = process.env.NEXT_PUBLIC_HELPLINE_NUMBER;
-  const live = phase === "active" || phase === "filing";
+  const live = phase === "active" || phase === "filing" || phase === "after";
+  const lastHelper = [...lines].reverse().find((l) => l.who === "helper")?.text ?? "";
 
   const settings = (
     <details className="mt-2 text-base" style={{ color: "var(--mist)" }}>
@@ -533,7 +557,7 @@ export default function CallPage() {
                     </span>
                   </span>
                   <span className="ml-auto flex gap-2">
-                    {phase === "active" && (
+                    {lineOpen(phase) && (
                       <button type="button" className="btn btn-ghost" onClick={toggleMute} aria-pressed={muted}>
                         {muted ? `🎙 ${t("call.unmute")}` : `🔇 ${t("call.mute")}`}
                       </button>
@@ -583,7 +607,7 @@ export default function CallPage() {
                 <div ref={bottom} />
               </ol>
 
-              {phase === "active" && (
+              {lineOpen(phase) && (
                 <div className="mt-6 flex flex-col gap-4">
                   <form
                     className="flex gap-2"
@@ -634,7 +658,44 @@ export default function CallPage() {
       </section>
 
       <AnimatePresence>{c.status === "tracing" && <Breathing log={c.log} />}</AnimatePresence>
-      {phase === "done" && c.result && <Results trace={c.trace} result={c.result} input={c.input} onNew={() => location.assign("/call")} />}
+      {(phase === "done" || phase === "after") && c.result && <Results trace={c.trace} result={c.result} input={c.input} onNew={() => location.assign("/call")} />}
+
+      {/* the call carries on while the caller reads their documents: a small call bar stays in reach */}
+      <AnimatePresence>
+        {phase === "after" && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            className="glass fixed inset-x-3 bottom-20 z-50 flex items-center gap-3 p-3 md:inset-x-auto md:bottom-6 md:left-6 md:max-w-xl md:p-4"
+            style={{ background: "var(--panel)" }}
+            role="region"
+            aria-label={t("call.title")}
+          >
+            <motion.span
+              aria-hidden
+              className="block h-10 w-10 shrink-0 rounded-full"
+              style={{ background: "radial-gradient(circle, #fff1d8, #ffd29a 50%, #f0a35e)" }}
+              animate={status === "speaking" ? { scale: [1, 1.15, 1] } : { scale: [1, 1.04, 1] }}
+              transition={{ duration: status === "speaking" ? 0.8 : 1.8, repeat: Infinity }}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-medium" aria-live="polite">
+                {muted ? t("call.mute") : interim ? `${interim}…` : t(`call.${status}`)}
+              </span>
+              <span className="line-clamp-2 text-sm" style={{ color: "var(--mist)" }}>
+                {lastHelper}
+              </span>
+            </span>
+            <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={toggleMute} aria-pressed={muted} aria-label={muted ? t("call.unmute") : t("call.mute")}>
+              {muted ? "🎙" : "🔇"}
+            </button>
+            <button type="button" className="btn btn-sm shrink-0" style={{ background: "#c2413a", color: "white" }} onClick={hangUp}>
+              {t("call.end")}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <Footer />
     </main>
   );
