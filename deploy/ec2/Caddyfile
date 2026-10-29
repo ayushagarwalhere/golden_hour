@@ -1,0 +1,9 @@
+# HTTPS certificates are fetched and renewed automatically.
+# DOMAIN is your domain, or <public-ip-with-dashes>.sslip.io if you don't have one yet.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		# send the live tracing progress to the browser as it happens
+		flush_interval -1
+	}
+}
